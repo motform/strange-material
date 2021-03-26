@@ -4,4 +4,5 @@
 (defmulti event-handler :event/type)
 
 (defmethod event-handler :default [event]
-  (prn event))
+  (println "ERROR: Unknown event" (:event/type event))
+  (println event))

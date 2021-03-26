@@ -9,14 +9,14 @@
 (defmulti panel :panel/type)
 
 (defmethod panel :default [_]
-  {:fx/type :label
+  {:fx/type     :label
    :style-class ["panel"]
-   :text   "Default panel."})
+   :text        "Default panel."})
 
 (defmethod panel :panel/timeline [_]
-  {:fx/type :label
+  {:fx/type     :label
    :style-class ["panel" "timeline"]
-   :text   "Timeline!"})
+   :text        "Timeline!"})
 
 (defn main-panel [{:keys [fx/context]}]
   (-> (fx/sub-ctx context subs/active-panel)
@@ -28,6 +28,7 @@
    :width   960
    :height  540
    :showing true
+   :title   "Visus"
    :scene   {:fx/type :scene
              :stylesheets [(::css/url styles/styles)]
              :root        {:fx/type :h-box

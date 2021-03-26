@@ -1,16 +1,16 @@
 (ns motform.strange.material.core
   (:require [cljfx.api                       :as fx]
             [clojure.core.cache              :as cache]
+            [motform.strange.material.editor :as editor]
             [motform.strange.material.events :as events]
-            [motform.strange.material.views  :as views]
-
-            [motform.strange.material.editor]))
+            [motform.strange.material.views  :as views]))
 
 (def *state
   (atom
    (fx/create-context
     {:panel/active  :panel/repl
-     :repl/history  "(+ 1 1)\n\n(assoc m :foo 1)"}
+     :repl/history  "(+ 1 1)"
+     :repl/response "no response"}
     cache/lru-cache-factory)))
 
 (def event-handler
@@ -19,7 +19,8 @@
        {:fx/context (fx/make-deref-co-effect *state)})
       (fx/wrap-effects
        {:context  (fx/make-reset-effect *state)
-        :dispatch fx/dispatch-effect})))
+        :dispatch  fx/dispatch-effect
+        :tcp       editor/tcp-effect})))
 
 (def renderer
   (fx/create-renderer
@@ -32,9 +33,6 @@
 (fx/mount-renderer *state renderer)
 
 (comment
-  
   (renderer)
-
   (swap! motform.strange.material.core/*state identity) ; touch state
-
   )
