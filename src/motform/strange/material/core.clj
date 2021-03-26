@@ -8,9 +8,9 @@
 (def *state
   (atom
    (fx/create-context
-    {:panel/active  :panel/repl
-     :repl/history  "(+ 1 1)"
-     :repl/response "no response"}
+    {:panel/active   :panel/repl
+     :repl/history   "(+ 1 1)"
+     :repl/responses []}
     cache/lru-cache-factory)))
 
 (def event-handler
@@ -35,4 +35,12 @@
 (comment
   (renderer)
   (swap! motform.strange.material.core/*state identity) ; touch state
+
+  (require 'clojure.string)
+
+  (->> (-> @*state :cljfx.context/m :repl/responses)
+       (map :val)
+       reverse
+       (clojure.string/join "\n"))
+
   )

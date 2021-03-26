@@ -1,3 +1,4 @@
 * DONE repl text area
-* TODO connect to external socket(?) repl
+* DONE connect to external socket(?) repl
+* TODO editor keyboard shortcuts
 * TODO editor keyboard shortcuts

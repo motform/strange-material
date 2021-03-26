@@ -47,7 +47,6 @@
 
       ".repl"
       {:-fx-font-family "Inconsolata"
-       :-fx-padding [20 0 0 0]
        :-fx-font-size   20}
 
       ".repl-submit"
@@ -55,5 +54,12 @@
        :-fx-border-width      1
        :-fx-font-size         15
        :-fx-background-color  (colors :sidebar)}
+
+      ".repl-tape"
+      {:-fx-font-family "Inconsolata"
+       :-fx-background-color  (colors :sidebar)
+       :-fx-padding 20
+       :-fx-font-size   20}
+
       })))
 
