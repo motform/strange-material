@@ -1,4 +1,6 @@
 * DONE repl text area
 * DONE connect to external socket(?) repl
 * TODO editor keyboard shortcuts
-* TODO editor keyboard shortcuts
+* TODO state monitoring
+  - how? watchers? taps?
+    + define a macro like (pin ) or (define )

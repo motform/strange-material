@@ -10,6 +10,7 @@
 (defn sidebar [{:keys [fx/context]}]
   (let [active-panel (fx/sub-ctx context subs/active-panel)]
     {:fx/type     :v-box
+     :min-width   1000
      :style-class ["sidebar"]
      :children    (for [[_ {:panel/keys [type sidebar-label]}] data/panels]
                     {:fx/type     :button
@@ -17,3 +18,4 @@
                      :on-action   {:event/type :panel/select :value type}
                      :style-class ["sidebar-panel-indicator"
                                    (when (= active-panel type) "sidebar-panel-indicator-active")]})}))
+

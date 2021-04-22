@@ -2,15 +2,17 @@
   (:require [cljfx.api                       :as fx]
             [clojure.core.cache              :as cache]
             [motform.strange.material.editor :as editor]
+            [motform.strange.material.kernel]
             [motform.strange.material.events :as events]
             [motform.strange.material.views  :as views]))
 
 (def *state
   (atom
    (fx/create-context
-    {:panel/active   :panel/repl
-     :repl/history   "(+ 1 1)"
-     :repl/responses []}
+    {:panel/active     :panel/kernel
+     :repl/history     "(+ 1 1)"
+     :repl/responses   []
+     :kernel/selected nil}
     cache/lru-cache-factory)))
 
 (def event-handler
@@ -42,5 +44,7 @@
        (map :val)
        reverse
        (clojure.string/join "\n"))
+
+  (-> @*state :cljfx.context/m)
 
   )

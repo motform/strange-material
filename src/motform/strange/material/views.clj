@@ -28,9 +28,9 @@
    :width   960
    :height  540
    :showing true
-   :title   "Visus"
+   :title   "Excursion"
    :scene   {:fx/type :scene
              :stylesheets [(::css/url styles/styles)]
              :root        {:fx/type :h-box
-                           :children [{:fx/type sidebar}
+                           :children [#_{:fx/type sidebar}
                                       {:fx/type main-panel}]}}})

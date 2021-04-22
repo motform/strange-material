@@ -1,15 +1,15 @@
 (ns motform.strange.material.editor
   (:require
-   [byte-streams       :as byte]
-   [cljfx.api          :as fx]
-   [clj-tcp.client     :as tcp]
-   [cljs.repl          :as repl]
-   [cljs.repl.browser  :as browser]
-   [clojure.core.async :as async]
-   [clojure.edn        :as edn]
-   [clojure.string     :as str]
-   [motform.strange.material.events :as events]
-   [motform.strange.material.views  :as views])
+   [byte-streams                    :as byte]    
+   [cljfx.api                       :as fx]      
+   [clj-tcp.client                  :as tcp]     
+   [cljs.repl                       :as repl]    
+   [cljs.repl.browser               :as browser] 
+   [clojure.core.async              :as async]   
+   [clojure.edn                     :as edn]     
+   [clojure.string                  :as str]     
+   [motform.strange.material.events :as events]  
+   [motform.strange.material.views  :as views])  
   (:import [java.util UUID]
            [java.util Date]
            [javafx.scene.input KeyCode KeyEvent]))
@@ -74,10 +74,10 @@
 ;; text-area might be too simple for an editor
 ;; as it only supports :text from a string?
 (defn editor [{:keys [fx/context]}]
-  {:fx/type         :text-area
-   :style-class     "repl"
-   :text            (fx/sub-ctx context repl-history)
-   :on-text-changed {:event/type ::type-text}})
+  {:fx/type        :text-area   
+   :style-class     "repl"       
+   :text            (fx/sub-ctx context repl-history) 
+   :on-text-changed {:event/type ::type-text}}) 
 
 (defn submit-form [{:fx/keys [context]}]
   {:fx/type     :button

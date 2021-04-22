@@ -4,8 +4,12 @@
          cljfx/cljfx               {:mvn/version "1.7.13"}
          cljfx/css                 {:mvn/version "1.1.0"}
          esprit/esprit             {:mvn/version "0.10.0"}
-         tcp-driver/tcp-driver     {:mvn/version "0.1.0"}
+         tcp-driver/tcp-driver     {:mvn/version "0.1.0"} ; use this one istead of 
          org.clojure/clojure       {:mvn/version "1.11.0-alpha1"}
          org.clojure/clojurescript {:mvn/version "1.10.764"}
          org.clojure/core.async    {:mvn/version "1.3.610"}
-         org.clojure/core.cache    {:mvn/version "1.0.207"}}}
+         org.clojure/core.cache    {:mvn/version "1.0.207"}
+         org.clojure/data.csv      {:mvn/version "1.0.0"}
+
+         io.forward/clojure-mail   {:mvn/version "1.0.8"}
+         javax.mail/mail           {:mvn/version "1.4.3"}}}

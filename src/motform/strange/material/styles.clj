@@ -3,10 +3,14 @@
 
 (def ^:private colors
   {:background "hsb(0, 0%, 100%)"
-   :foreground "hsb(0, 0%, 0%)"
-   :inactive   "hsb(0, 0%, 50%)"
    :sidebar    "hsb(0, 0%, 90%)"
-   :border     "hsb(0, 0%, 80%)"})
+
+   :inactive   "hsb(0, 0%, 50%)"
+   :meta       "hsb(0, 0%, 30%)"
+   :foreground "hsb(0, 0%, 0%)"
+
+   :border     "hsb(0, 0%, 80%)"
+   :selection  "hsb(0, 0%, 98%)"})
 
 (def styles
   (css/register
@@ -26,8 +30,9 @@
       {:-fx-background-color (colors :sidebar)}
 
       ".sidebar-panel-indicator"
-      {:-fx-text-fill (colors :inactive)
-       :-fx-padding   [7 15 7 15]
+      {:-fx-text-fill      (colors :inactive)
+       :-fx-alignment      "CENTER"
+       :-fx-padding        [7 15 7 15]
        ":hover"
        {:-fx-text-fill        (colors :foreground)
         :-fx-background-color (colors :border)}}
@@ -39,7 +44,7 @@
        {:-fx-background-color (colors :background)}}
 
       ".panel"
-      {:-fx-padding [8 20 20 20]
+      {:-fx-padding 20
        :-fx-spacing 20}
 
       ".timeline"
@@ -56,10 +61,63 @@
        :-fx-background-color  (colors :sidebar)}
 
       ".repl-tape"
-      {:-fx-font-family "Inconsolata"
+      {:-fx-font-family       "Inconsolata"
        :-fx-background-color  (colors :sidebar)
-       :-fx-padding 20
-       :-fx-font-size   20}
+       :-fx-padding           20
+       :-fx-font-size         20}
+
+      ".kernel-call-stack"
+      {:-fx-background-color "transparent"
+       :-fx-padding [0 10 0 0]}
+
+      ;; Scroll bar styles 
+
+      ".track" {:-fx-background-color (colors :background)}
+      ".thumb" {:-fx-background-color (colors :sidebar)}
+
+      ".increment-button" {:-fx-background-color (colors :background) :-fx-border-width 0}
+      ".decrement-button" {:-fx-background-color (colors :background)}
+
+      ".kernel-process-view"
+      {:-fx-background-color (colors :background)
+       :-fx-border-width     0}
+
+      ".kernel-process-item"
+      {:-fx-background-color (colors :background)
+       :-fx-padding          2
+       :-fx-font-size        14
+       :-fx-font-family      "Inconsolata"}
+
+      ".kernel-process-item:hover"
+      {:-fx-background-color  (colors :sidebar)}
+
+      ".kernel-process-item-selected"
+      {:-fx-background-color (colors :sidebar)}
+
+      ".kernel-email-view"
+      {:-fx-padding      15
+       :-fx-border-width [1 1 0 1]
+       :-fx-border-color (colors :border)
+       :-fx-font-size    15
+       ":hover"
+       {:-fx-background-color (colors :selection)}}
+
+      ".kernel-email-view-topic"
+      {:-fx-border-width [0 0 1 0]
+       :-fx-padding      [0 0 10 0]
+       :-fx-border-color (colors :border)}
+
+      ".kernel-email-view-selected"
+      {:-fx-background-color (colors :selection)}
+
+      ".kernel-email-view-meta"
+      {:-fx-text-fill (colors :meta)
+       :-fx-font-size 11
+       :-fx-padding   [10 0 10 0]}
+
+      ".kernel-email-view-msg"
+      {:-fx-padding     0
+       :-fx-font-family "Inconsolata"}
 
       })))
 

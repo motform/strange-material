@@ -11,5 +11,10 @@
     #:panel
     {:type          :panel/timeline
      :sidebar-label "T"
-     :heading       "Timeline"}]
+     :heading       "Timeline"}
+    
+    #:panel
+    {:type          :panel/kernel
+     :sidebar-label "K"
+     :heading       "Whispers in the Bazaar"}]
    :panel/type))
