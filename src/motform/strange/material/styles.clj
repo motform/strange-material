@@ -66,11 +66,16 @@
        :-fx-padding           20
        :-fx-font-size         20}
 
+      ".kernel-command-line"
+      {:-fx-padding [0 0 10 0]}
+
       ".kernel-call-stack"
       {:-fx-background-color "transparent"
        :-fx-padding [0 10 0 0]}
 
-      ;; Scroll bar styles 
+
+      ;;; SCROLL BAR STYLES 
+
 
       ".track" {:-fx-background-color (colors :background)}
       ".thumb" {:-fx-background-color (colors :sidebar)}
@@ -78,21 +83,29 @@
       ".increment-button" {:-fx-background-color (colors :background) :-fx-border-width 0}
       ".decrement-button" {:-fx-background-color (colors :background)}
 
-      ".kernel-process-view"
+
+      ;;; SYSTEM CALLS
+
+
+      ".kernel-system-call-view"
       {:-fx-background-color (colors :background)
        :-fx-border-width     0}
 
-      ".kernel-process-item"
+      ".kernel-system-call-item"
       {:-fx-background-color (colors :background)
        :-fx-padding          2
        :-fx-font-size        14
        :-fx-font-family      "Inconsolata"}
 
-      ".kernel-process-item:hover"
+      ".kernel-system-call-item:hover"
       {:-fx-background-color  (colors :sidebar)}
 
-      ".kernel-process-item-selected"
+      ".kernel-system-call-item-selected"
       {:-fx-background-color (colors :sidebar)}
+
+
+      ;;; EMAILS
+
 
       ".kernel-email-view"
       {:-fx-padding      15
@@ -115,7 +128,7 @@
        :-fx-font-size 11
        :-fx-padding   [10 0 10 0]}
 
-      ".kernel-email-view-msg"
+      ".kernel-email-view-body"
       {:-fx-padding     0
        :-fx-font-family "Inconsolata"}
 

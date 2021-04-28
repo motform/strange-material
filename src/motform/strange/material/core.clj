@@ -9,10 +9,14 @@
 (def *state
   (atom
    (fx/create-context
-    {:panel/active     :panel/kernel
-     :repl/history     "(+ 1 1)"
-     :repl/responses   []
-     :kernel/selected nil}
+    {:panel/active :panel/kernel
+
+     :kernel/selected-system-call nil
+     :kernel/command-line         "ls -lla"
+
+     ;; :repl/history     "(+ 1 1)"
+     ;; :repl/responses   []
+     }
     cache/lru-cache-factory)))
 
 (def event-handler

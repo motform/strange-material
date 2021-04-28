@@ -10,6 +10,10 @@
             [javax.mail.internet MimeMessage]
             [java.util           Properties]))
 
+;;
+;; public-inbox wrangling
+;;
+
 (defn- git-revisions [git-path]
   (->> (shell/sh "git" "-C" git-path "rev-list" "--pretty=oneline" "--reverse" "master")
        :out
@@ -24,14 +28,13 @@
 
 (defn- parse-email [email-str]
   (email/read-message
-   (let [props (Session/getDefaultInstance (Properties.))]
-     (with-open [msg (->stream email-str)]
-       (MimeMessage. props msg)))))
+   (with-open [msg (->stream email-str)]
+     (MimeMessage. (Session/getDefaultInstance (Properties.)) msg))))
 
 (defn- topmost-path [path]
   (last (str/split path #"/")))
 
-(defn lkml-paths [top-path]
+(defn- lkml-paths [top-path]
   (let [paths (transient [])]
     (doseq [list-path (.listFiles (io/file top-path))]
       (let [list-name (-> list-path .getAbsolutePath topmost-path)]
@@ -41,52 +44,56 @@
               (conj! paths [list-name (.getAbsolutePath sublist-path)]))))))
     (persistent! paths)))
 
-(defn parse-emails [[list-name git-path]]
+(defn- parse-emails [[list-name git-path]]
   (->> git-path
        git-revisions
        (pmap (comp #(assoc % :list list-name)
                    parse-email
                    (partial sha->pi-email git-path)))))
 
-
-
-(defn email->query [email]
-  {:list    (-> email :list)
-   :author  (-> email :from first :name)
+(defn- email->query [email]
+  {:author  (-> email :from first :name)
    :address (-> email :from first :address)
    :date    (-> email :date-sent)
    :subject (-> email :subject)
    :body    (-> email :body :body)})
 
+;;
+;; Database query
+;;
+
+(def ^:private db {:dbtype "sqlite" :dbname "resources/db/lkml-fts"})
+(def ^:private ds (jdbc/get-datasource db))
+
+(defn- emails-by-key [key]
+  (fn [s limit offset]
+    (jdbc/execute! ds [(format "SELECT rowid, * FROM email
+                              WHERE %s MATCH '%s'
+                              ORDER BY date
+                              LIMIT %d
+                              OFFSET %d"
+                               key s limit offset)])))
+
+(def emails-by-subject (emails-by-key "subject"))
+(def emails-by-body    (emails-by-key "body"))
+
 (comment 
+  (require '[clojure.instant :as instant])
+  (:email/date (first (emails-by-subject "brk" 1 0)))
 
-  (def db {:dbtype "sqlite" :dbname "resources/db/emails"}) ; the old DB
-  (def db {:dbtype "sqlite" :dbname "resources/db/lkml"})
-  (def ds (jdbc/get-datasource db))
-  (jdbc/execute! ds ["CREATE TABLE emails(list CHAR(255), author CHAR(255), address CHAR(255), date CHAR(255), subject TEXT, body TEXT);"])
-  ;; (def ds (jdbc/get-datasource "jdbc:sqlite:/Users/lla/Projects/strange_material/resources/db/lkml"))
-
-
-  ;; OLD - 2, 8
-
-  ;; [0 1]
-  (def emails
+  (def emails ;; [0 1 2]
     (->> (lkml-paths "/Users/lla/Projects/github/lkml/")
          (filter (fn [[list _]] (= list "lkml")))
-         (into [])
          (sort)
-         #_(drop 2)
-         (take 2)
+         (drop 3)
+         (take 1)
          (pmap (comp (partial pmap email->query)
                      parse-emails))))
 
   (doseq [list emails]
     (doseq [query list]
-      (sql/insert! ds :emails query)))
+      (sql/insert! ds :email query)))
 
-  (def email-table
-    "CREATE TABLE emails(list CHAR(255), author CHAR(255), address CHAR(255), date CHAR(255), subject TEXT, body TEXT);")
-
-  (count (jdbc/execute! ds ["select * from emails"]))
-
+  (sql/query ds ["SELECT author FROM email WHERE rowid = 10000"])
+  ;; (jdbc/execute! ds ["CREATE VIRTUAL TABLE email USING fts5(author, address, date, subject, body)"])
   )
