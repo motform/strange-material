@@ -13,6 +13,8 @@
 
      :kernel/selected-system-call nil
      :kernel/command-line         "ls -lla"
+     :kernel.email/offset         0
+     :kernel.email/selected       nil
 
      ;; :repl/history     "(+ 1 1)"
      ;; :repl/responses   []

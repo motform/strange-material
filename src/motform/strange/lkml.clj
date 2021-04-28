@@ -10,9 +10,9 @@
             [javax.mail.internet MimeMessage]
             [java.util           Properties]))
 
-;;
-;; public-inbox wrangling
-;;
+
+;; PUBLIC-INBOX WRANGLING
+
 
 (defn- git-revisions [git-path]
   (->> (shell/sh "git" "-C" git-path "rev-list" "--pretty=oneline" "--reverse" "master")
@@ -58,9 +58,9 @@
    :subject (-> email :subject)
    :body    (-> email :body :body)})
 
-;;
-;; Database query
-;;
+
+;; DATABASE QUERY
+
 
 (def ^:private db {:dbtype "sqlite" :dbname "resources/db/lkml-fts"})
 (def ^:private ds (jdbc/get-datasource db))
@@ -68,18 +68,29 @@
 (defn- emails-by-key [key]
   (fn [s limit offset]
     (jdbc/execute! ds [(format "SELECT rowid, * FROM email
-                              WHERE %s MATCH '%s'
-                              ORDER BY date
-                              LIMIT %d
-                              OFFSET %d"
+                                WHERE %s MATCH '%s'
+                                ORDER BY date
+                                LIMIT %d
+                                OFFSET %d"
                                key s limit offset)])))
 
 (def emails-by-subject (emails-by-key "subject"))
 (def emails-by-body    (emails-by-key "body"))
 
+(defn- count-emails-by-key [key]
+  (fn [s]
+    (println s)
+    (if s
+      (let [q (format "SELECT count(*) FROM email WHERE %s MATCH '%s'" key s)]
+        (-> (jdbc/execute! ds [q]) first vals first))
+      "no")))
+
+(def count-emails-by-subject (count-emails-by-key "subject"))
+(def count-emails-by-body    (count-emails-by-key "body"))
+
+
 (comment 
-  (require '[clojure.instant :as instant])
-  (:email/date (first (emails-by-subject "brk" 1 0)))
+  (count-emails-by-subject "open")
 
   (def emails ;; [0 1 2]
     (->> (lkml-paths "/Users/lla/Projects/github/lkml/")

@@ -1,4 +1,5 @@
-(ns motform.strange.util)
+(ns motform.strange.util
+  (:import [javafx.stage Screen Window]))
 
 (defn index-by-key [ms idx-k]
   (into {} (map (juxt idx-k identity)) ms))
@@ -12,4 +13,18 @@
                {:seen #{} :acc []})
        :acc))
 
+(defn screen-height []
+  (-> (Screen/getPrimary) .getBounds .getHeight))
 
+(defn screen-width []
+  (-> (Screen/getPrimary) .getBounds .getWidth))
+
+(defn window-height
+  "Assumes that there is a single window open"
+  []
+  (-> (Window/getWindows) first .getHeight))
+
+(defn window-width
+  "Assumes that there is a single window open"
+  []
+  (-> (Window/getWindows) first .getWidth))
