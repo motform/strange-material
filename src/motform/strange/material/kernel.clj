@@ -1,25 +1,56 @@
 (ns motform.strange.material.kernel
   (:require [cljfx.api                       :as fx]      
             [clojure.string                  :as str]     
+            [clojure.java.shell              :as shell]
             [motform.strange.lkml            :as lkml]
             [motform.strange.util            :as util]
             [motform.strange.material.events :as events]  
-            [motform.strange.material.views  :as views]))
+            [motform.strange.material.views  :as views])
+  (:import [javafx.scene.input KeyCode KeyEvent]))
 
 ;;; COMMAND LINE
 
-(defmethod events/event-handler ::change-command [{:fx/keys [context event]}]
-  {:context (fx/swap-context context assoc :kernel/command-line event)})
+(defn parse-strace [strace]
+  (->> strace
+       str/split-lines
+       drop-last
+       (map (fn [stack-frame] #:strace
+              {:frame stack-frame
+               :name (re-find #"^\w*" stack-frame)}))))
 
-(defn command-line-command [context]
-  (fx/sub-val context :kernel/command-line))
+
+(defn ssh-effect [{:keys [command]} dispatch!]
+  (let [{:keys [out err]} (shell/sh "ssh" "vagrant@lkml" "strace" command)]
+    (dispatch! {:event/type ::ssh-response
+                :response   #:command{:output out
+                                      :name   command
+                                      :strace (parse-strace err)}})))
+
+(defn linux-command [context]
+  (fx/sub-val context :kernel.linux/command))
+
+(defn linux-response [context]
+  (fx/sub-val context :kernel.linux/response))
+
+(defmethod events/event-handler ::change-command [{:fx/keys [context event]}]
+  {:context (fx/swap-context context assoc :kernel.linux/command event)})
+
+;; TODO Make this non-blocking! 
+(defmethod events/event-handler ::submit-command [{:fx/keys [context event]}]
+  (def e event)
+  (when (= KeyCode/ENTER (.getCode ^KeyEvent event))
+    {:ssh {:command (fx/sub-ctx context linux-command)}}))
+
+(defmethod events/event-handler ::ssh-response [{:keys [fx/context response]}]
+  {:context (fx/swap-context context assoc :kernel.linux/response response)})
 
 (defn command-line [{:fx/keys [context]}]
-  (let [command (fx/sub-ctx context command-line-command)]
+  (let [command (fx/sub-ctx context linux-command)]
     {:fx/type     :v-box
      :style-class ["kernel-command-line"]
      :children [{:fx/type         :text-field
                  :on-text-changed {:event/type ::change-command}
+                 :on-key-pressed  {:event/type ::submit-command}
                  :text            command}]}))
 
 ;;; SIDEBAR
@@ -33,8 +64,6 @@
               {:call ps
                :name (re-find #"^\w*" ps)}))))
 
-(def std-out-out (str/split-lines "Applications     Desktop    Downloads  Mail    Music     Projects  References\nCalibre Library  Documents  Library    Movies  Pictures  Public    VirtualBox VMs"))
-
 (defmethod events/event-handler ::select-system-call [{:keys [fx/context system-call]}]
   {:context (fx/swap-context context assoc :kernel/selected-system-call system-call)})
 
@@ -47,17 +76,18 @@
 (defn selected-system-call [context]
   (fx/sub-val context :kernel/selected-system-call))
 
-(defn system-call-item [{:keys [system-call selected?]}]
+(defn system-call-item [{:keys [selected?] {:strace/keys [name]} :system-call}]
   {:fx/type          :h-box
    :style-class      (if selected? "kernel-system-call-item-selected" "kernel-system-call-item")
    :on-mouse-clicked {:event/type  ::select-system-call
-                      :system-call (:process/name system-call)}
+                      :system-call name}
    :children [{:fx/type :label
-               :text    (system-call :process/name "")}]})
+               :text    (or name "")}]})
 
 (defn system-call-view [{:fx/keys [context]}]
-  (let [selected-system-call (fx/sub-ctx context selected-system-call)
-        system-calls         (util/distinct-by-key strace-out :process/name)]
+  (let [{:command/keys [strace]} (fx/sub-ctx context linux-response)
+        selected-system-call     (fx/sub-ctx context selected-system-call)
+        system-calls             (util/distinct-by-key strace :strace/name)]
     {:fx/type     :v-box
      :style-class "kernel-sidebar-container"
      :children    [{:fx/type sidebar-container-label
@@ -65,10 +95,10 @@
                    {:fx/type      :v-box
                     :style-class  "kernel-sidebar-list"
                     :spacing      3
-                    :children     (for [system-call system-calls]
+                    :children     (for [{:strace/keys [name] :as system-call} system-calls]
                                     {:fx/type     system-call-item
                                      :system-call system-call
-                                     :selected?   (= (:process/name system-call) selected-system-call)})}]}))
+                                     :selected?   (= name selected-system-call)})}]}))
 
 (defn std-out-item [{:keys [line]}]
   {:fx/type     :h-box
@@ -76,28 +106,30 @@
    :children [{:fx/type :label
                :text    line}]})
 
-(defn std-out-view [_]
-  {:fx/type     :v-box
-   :style-class "kernel-sidebar-container"
-   :children    [{:fx/type sidebar-container-label
-                  :label   "output"}
-                 {:fx/type      :v-box
-                  :style-class  "kernel-sidebar-list"
-                  :spacing      3
-                  :children     (for [line std-out-out]
-                                  {:fx/type std-out-item
-                                   :line    line})}]})
+(defn std-out-view [{:fx/keys [context]}]
+  (let [{:command/keys [output]} (fx/sub-ctx context linux-response)]
+    {:fx/type     :v-box
+     :style-class "kernel-sidebar-container"
+     :children    [{:fx/type sidebar-container-label
+                    :label   "output"}
+                   {:fx/type      :v-box
+                    :style-class  "kernel-sidebar-list"
+                    :spacing      3
+                    :children     (for [line (str/split-lines output)]
+                                    {:fx/type std-out-item
+                                     :line    line})}]}))
 
-(defn stack-trace-item [{:keys [system-call selected?]}]
+(defn stack-trace-item [{:keys [selected?] {:strace/keys [name frame]} :system-call}]
   {:fx/type          :h-box
    :style-class      (if selected? "kernel-system-call-item-selected" "kernel-system-call-item")
    :on-mouse-clicked {:event/type  ::select-system-call
-                      :system-call (:process/name system-call)}
+                      :system-call name}
    :children [{:fx/type :label
-               :text    (system-call :process/call "")}]})
+               :text    (or frame "")}]})
 
 (defn stack-trace-view [{:fx/keys [context]}]
-  (let [selected-system-call (fx/sub-ctx context selected-system-call)]
+  (let [{:command/keys [strace]} (fx/sub-ctx context linux-response)
+        selected-system-call     (fx/sub-ctx context selected-system-call)]
     {:fx/type     :v-box
      :style-class "kernel-sidebar-container"
      :children    [{:fx/type sidebar-container-label
@@ -105,14 +137,15 @@
                    {:fx/type      :v-box
                     :style-class  "kernel-sidebar-list"
                     :spacing      3
-                    :children     (for [system-call strace-out]
+                    :children     (for [{:strace/keys [name] :as system-call} strace]
                                     {:fx/type     stack-trace-item
                                      :system-call system-call
-                                     :selected?   (= (:process/name system-call) selected-system-call)})}]}))
+                                     :selected?   (= name selected-system-call)})}]}))
 
 (defn sidebar [_]
   {:fx/type      :scroll-pane
-   :max-width     (/ (util/window-width) 3)
+   ;; :max-width     (/ (util/window-width) 3)
+   :max-width   350
    :style-class  "kernel-sidebar"
    :fit-to-width true
    :content      {:fx/type :v-box
@@ -185,8 +218,8 @@
   (let [system-call (fx/sub-ctx context selected-system-call)
         email-count (lkml/count-emails-by-subject system-call)]
     {:fx/type       :scroll-pane
-     :style-class   "kernel-emails"
-     :min-width     (* 2 (/ (util/window-width) 3))
+     :style-class   "kernel-email"
+     ;; :min-width     (* 2 (/ (util/window-width) 3))
      :fit-to-width  true
      :fit-to-height true
      :content       {:fx/type   :v-box

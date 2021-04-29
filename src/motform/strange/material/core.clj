@@ -2,7 +2,7 @@
   (:require [cljfx.api                       :as fx]
             [clojure.core.cache              :as cache]
             [motform.strange.material.editor :as editor]
-            [motform.strange.material.kernel]
+            [motform.strange.material.kernel :as kernel]
             [motform.strange.material.events :as events]
             [motform.strange.material.views  :as views]))
 
@@ -12,7 +12,8 @@
     {:panel/active :panel/kernel
 
      :kernel/selected-system-call nil
-     :kernel/command-line         "ls -lla"
+     :kernel.linux/command        "ls -lla"
+     :kernel.linux/response       nil
      :kernel.email/offset         0
      :kernel.email/selected       nil
 
@@ -28,6 +29,7 @@
       (fx/wrap-effects
        {:context  (fx/make-reset-effect *state)
         :dispatch  fx/dispatch-effect
+        :ssh       kernel/ssh-effect
         :tcp       editor/tcp-effect})))
 
 (def renderer

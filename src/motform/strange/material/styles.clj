@@ -33,7 +33,7 @@
       ".track" {:-fx-background-color (colors :sidebar)}
       ".thumb" {:-fx-background-color (colors :scroll-bar) :-fx-background-radius 0}
 
-      ".increment-button" {:-fx-background-color (colors :sidebar) :-fx-padding 0 :-fx-border-color (colors :sidebar) }
+      ".increment-button" {:-fx-background-color (colors :sidebar) :-fx-padding 0   :-fx-border-color (colors :sidebar) }
       ".decrement-button" {:-fx-background-color (colors :sidebar) :-fx-padding -50 :-fx-border-color (colors :sidebar)}
       ".decrement-arrow"  {:-fx-padding 0 :-fx-border-width 0 :-fx-border-color (colors :sidebar) :-fx-shape " "}
       ".increment-arrow"  {:-fx-padding 0 :-fx-border-width 0 :-fx-border-color (colors :sidebar) :-fx-shape " "}

@@ -79,7 +79,6 @@
 
 (defn- count-emails-by-key [key]
   (fn [s]
-    (println s)
     (if s
       (let [q (format "SELECT count(*) FROM email WHERE %s MATCH '%s'" key s)]
         (-> (jdbc/execute! ds [q]) first vals first))
