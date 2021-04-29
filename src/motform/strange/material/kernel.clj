@@ -18,6 +18,18 @@
               {:frame stack-frame
                :name (re-find #"^\w*" stack-frame)}))))
 
+(defn linux-command [context]
+  (fx/sub-val context :kernel.linux/command))
+
+(defn linux-command-selected [context]
+  (fx/sub-val context :kernel.linux.command/selected))
+
+(defn linux-response [context]
+  (let [id (fx/sub-ctx context linux-command-selected)]
+    (get (fx/sub-val context :kernel.linux/responses) id {:error "incorrect command index"})))
+
+(defn linux-responses [context]
+  (fx/sub-val context :kernel.linux/responses))
 
 (defn ssh-effect [{:keys [command]} dispatch!]
   (let [{:keys [out err]} (shell/sh "ssh" "vagrant@lkml" "strace" command)]
@@ -26,32 +38,46 @@
                                       :name   command
                                       :strace (parse-strace err)}})))
 
-(defn linux-command [context]
-  (fx/sub-val context :kernel.linux/command))
-
-(defn linux-response [context]
-  (fx/sub-val context :kernel.linux/response))
+(defmethod events/event-handler ::ssh-response [{:keys [fx/context response]}]
+  (let [id       (-> context :cljfx.context/m :kernel.linux/responses count)
+        resp (assoc response :command/id id)]
+    {:context (fx/swap-context context #(-> %
+                                            (assoc-in [:kernel.linux/responses id] resp)
+                                            (assoc :kernel.linux.command/selected id)
+                                            (assoc :kernel.linux/command "")))}))
 
 (defmethod events/event-handler ::change-command [{:fx/keys [context event]}]
-  {:context (fx/swap-context context assoc :kernel.linux/command event)})
+  {:context (fx/swap-context context assoc :kernel.linux/command event :kernel.email/offset 50)})
+
+(defmethod events/event-handler ::select-command-history [{:keys [fx/context id]}]
+  {:context (fx/swap-context context assoc :kernel.linux.command/selected id)})
 
 ;; TODO Make this non-blocking! 
 (defmethod events/event-handler ::submit-command [{:fx/keys [context event]}]
-  (def e event)
   (when (= KeyCode/ENTER (.getCode ^KeyEvent event))
     {:ssh {:command (fx/sub-ctx context linux-command)}}))
 
-(defmethod events/event-handler ::ssh-response [{:keys [fx/context response]}]
-  {:context (fx/swap-context context assoc :kernel.linux/response response)})
+(defn command-history [{:fx/keys [context]}]
+  (let [history          (vals (fx/sub-ctx context linux-responses))
+        selected-command (fx/sub-ctx context linux-command-selected)]
+    {:fx/type  :h-box
+     :style-class "kernel-command-history"
+     :children (for [{:command/keys [name id]} history]
+                 {:fx/type          :label
+                  :style-class      ["kernel-command-history-tab" (when (= id selected-command) "kernel-command-history-tab-selected")]
+                  :on-mouse-clicked {:event/type  ::select-command-history
+                                     :id          id}
+                  :text             name})}))
 
 (defn command-line [{:fx/keys [context]}]
-  (let [command (fx/sub-ctx context linux-command)]
+  (let [command   (fx/sub-ctx context linux-command)]
     {:fx/type     :v-box
      :style-class ["kernel-command-line"]
      :children [{:fx/type         :text-field
                  :on-text-changed {:event/type ::change-command}
                  :on-key-pressed  {:event/type ::submit-command}
-                 :text            command}]}))
+                 :text            command}
+                {:fx/type command-history}]}))
 
 ;;; SIDEBAR
 
@@ -70,8 +96,9 @@
 (defn sidebar-container-label [{:keys [label]}]
   {:fx/type     :v-box
    :style-class "kernel-sidebar-container-label"
-   :children    [{:fx/type :label
-                  :text    (str/upper-case label)}]})
+   :children    [{:fx/type     :label
+                  :style-class "kernel-sidebar-container-label-text"
+                  :text        (str/upper-case label)}]})
 
 (defn selected-system-call [context]
   (fx/sub-val context :kernel/selected-system-call))
@@ -115,7 +142,7 @@
                    {:fx/type      :v-box
                     :style-class  "kernel-sidebar-list"
                     :spacing      3
-                    :children     (for [line (str/split-lines output)]
+                    :children     (for [line (if output (str/split-lines output) [])]
                                     {:fx/type std-out-item
                                      :line    line})}]}))
 
@@ -149,8 +176,8 @@
    :style-class  "kernel-sidebar"
    :fit-to-width true
    :content      {:fx/type :v-box
-                  :children [{:fx/type system-call-view}
-                             {:fx/type std-out-view}
+                  :children [{:fx/type std-out-view}
+                             {:fx/type system-call-view}
                              {:fx/type stack-trace-view}]}})
 
 ;;; EMAILS
@@ -159,19 +186,19 @@
   {:fx/type :label
    :text    ""})
 
-(defn email-expanded [{{:email/keys [author body]} :email}]
+(defn email-expanded [{{:email/keys [author address body] :as email} :email}]
   {:fx/type :v-box
    :spacing 10
    :children [{:fx/type     :label
                :style-class "kernel-email-view-meta"
-               :text        (str/upper-case author)} ; TODO add date
+               :text        (str (when author author) " " (when address (str "<" address ">")))}
               {:fx/type     :text-area
                :style-class "kernel-email-view-body"
                :text        body
                :min-height  400}]})
 
 (defmethod events/event-handler ::select-email [{:keys [fx/context email]}]
-  {:context (fx/swap-context context assoc :kernel.email/selected email :kernel.email/offset 50)})
+  {:context (fx/swap-context context assoc :kernel.email/selected email)})
 
 (defn email-view [{:keys [selected?] {:email/keys [subject rowid] :as email} :email}]
   {:fx/type          :v-box
@@ -208,25 +235,29 @@
 (defmethod events/event-handler ::increment-email-offset [{:fx/keys [context]}]
   {:context (fx/swap-context context update :kernel.email/offset + 20)})
 
-(defn email-offset-button [{:fx/keys [context]}]
+(defn email-offset-button [_]
   {:fx/type          :label
-   :style-class      "kernel-email-offset-button"
+   :style            {:-fx-alignment "CENTER"
+                      :-fx-padding   15
+                      :-fx-font-size 12}
    :on-mouse-clicked {:event/type  ::increment-email-offset}
-   :text             (str/upper-case "more emails")})
+   :text             (str/upper-case "load more emails")})
 
 (defn system-call-emails [{:fx/keys [context]}]
   (let [system-call (fx/sub-ctx context selected-system-call)
         email-count (lkml/count-emails-by-subject system-call)]
-    {:fx/type       :scroll-pane
-     :style-class   "kernel-email"
-     ;; :min-width     (* 2 (/ (util/window-width) 3))
-     :fit-to-width  true
-     :fit-to-height true
-     :content       {:fx/type   :v-box
-                     :children  [{:fx/type sidebar-container-label
-                                  :label   (str email-count " emails about " system-call)}
-                                 {:fx/type email-list}
-                                 {:fx/type email-offset-button}]}}))
+    {:fx/type :v-box
+     :children [{:fx/type sidebar-container-label
+                 :label   (str email-count " emails about " system-call)}
+                {:fx/type       :scroll-pane
+                 :style-class   "kernel-email"
+                 ;; :min-width     (* 2 (/ (util/window-width) 3))
+                 :fit-to-width  true
+                 :fit-to-height true
+                 :content       {:fx/type   :v-box
+                                 :children  [
+                                             {:fx/type email-list}
+                                             {:fx/type email-offset-button}]}}]}))
 
 (defmethod views/panel :panel/kernel [_]
   {:fx/type       :v-box

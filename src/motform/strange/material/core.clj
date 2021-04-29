@@ -12,8 +12,8 @@
     {:panel/active :panel/kernel
 
      :kernel/selected-system-call nil
-     :kernel.linux/command        "ls -lla"
-     :kernel.linux/response       nil
+     :kernel.linux/command        "" 
+     :kernel.linux/responses      (sorted-map)
      :kernel.email/offset         0
      :kernel.email/selected       nil
 
@@ -53,6 +53,6 @@
        reverse
        (clojure.string/join "\n"))
 
-  (-> @*state :cljfx.context/m)
+  (-> @*state :cljfx.context/m :kernel.linux/responses keys)
 
   )
