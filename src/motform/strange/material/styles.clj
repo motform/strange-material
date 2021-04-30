@@ -22,7 +22,11 @@
    (let [padding 10]
      {::padding padding
 
+      "@font-face" {:-fx-font-family "MD System"
+                    :src "url(\"resources/fonts/MDSystemTest-Regular.ttf\")"}
+
       ".root" {:-fx-background-color (colors :background)
+               :-fx-font-family      "MD System"
                :-fx-font-size        20}
 
       ".scroll-bar:vertical"   {:-fx-pref-width  10}
@@ -86,10 +90,16 @@
                                          :-fx-font-size        14
                                          :-fx-font-family      "Inconsolata"}}
 
-       "-std-out-item" {:-fx-background-color (colors :sidebar)
-                        :-fx-padding          [2 0 2 10]
-                        :-fx-font-size        14
-                        :-fx-font-family      "Inconsolata"}
+       "-std-out" {:-fx-background-color (colors :frame)
+                   :-fx-padding          [20 0]
+
+                   "-item" {:-fx-background-color (colors :frame)
+                            :-fx-padding          [2 0 2 10]
+
+                            "-text" {:-fx-background-color (colors :frame)
+                                     :-fx-text-fill        (colors :background)
+                                     :-fx-font-size        14
+                                     :-fx-font-family      "Inconsolata"}}}
 
        "-email" {:-fx-background-color "transparent"
                  :-fx-padding          0
@@ -109,9 +119,9 @@
                           "-meta"     {:-fx-text-fill (colors :meta)
                                        :-fx-font-size 11}
 
-                          "-body"     {:-fx-padding     0
-                                       :-fx-font-family "Inconsolata"
-                                       :-fx-background-color (colors :selection)}
+                          "-body"     {:-fx-padding          [10 0 0 10]
+                                       :-fx-font-size 15
+                                       :-fx-font-family      "Inconsolata"}
 
                           "-offset-button" {:-fx-alignment "CENTER"
                                             :-fx-text-fill "red"

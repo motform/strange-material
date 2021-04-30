@@ -43,11 +43,12 @@
         resp (assoc response :command/id id)]
     {:context (fx/swap-context context #(-> %
                                             (assoc-in [:kernel.linux/responses id] resp)
-                                            (assoc :kernel.linux.command/selected id)
-                                            (assoc :kernel.linux/command "")))}))
+                                            (assoc :kernel.linux.command/selected  id)
+                                            (assoc :kernel.linux/command "")
+                                            (assoc :kernel.email/offest  50)))}))
 
 (defmethod events/event-handler ::change-command [{:fx/keys [context event]}]
-  {:context (fx/swap-context context assoc :kernel.linux/command event :kernel.email/offset 50)})
+  {:context (fx/swap-context context assoc :kernel.linux/command event)})
 
 (defmethod events/event-handler ::select-command-history [{:keys [fx/context id]}]
   {:context (fx/swap-context context assoc :kernel.linux.command/selected id)})
@@ -67,7 +68,7 @@
                   :style-class      ["kernel-command-history-tab" (when (= id selected-command) "kernel-command-history-tab-selected")]
                   :on-mouse-clicked {:event/type  ::select-command-history
                                      :id          id}
-                  :text             name})}))
+                  :text             (-> name (str/split #" ") first)})}))
 
 (defn command-line [{:fx/keys [context]}]
   (let [command   (fx/sub-ctx context linux-command)]
@@ -129,18 +130,19 @@
 
 (defn std-out-item [{:keys [line]}]
   {:fx/type     :h-box
-   :style-class ["kernel-std-out-item"]
-   :children [{:fx/type :label
-               :text    line}]})
+   :style-class "kernel-std-out-item"
+   :children [{:fx/type     :label
+               :style-class "kernel-std-out-item-text"
+               :text        line}]})
 
 (defn std-out-view [{:fx/keys [context]}]
   (let [{:command/keys [output]} (fx/sub-ctx context linux-response)]
     {:fx/type     :v-box
-     :style-class "kernel-sidebar-container"
+     :style-class ["kernel-sidebar-container"]
      :children    [{:fx/type sidebar-container-label
                     :label   "output"}
                    {:fx/type      :v-box
-                    :style-class  "kernel-sidebar-list"
+                    :style-class  ["kernel-sidebar-list" "kernel-std-out"]
                     :spacing      3
                     :children     (for [line (if output (str/split-lines output) [])]
                                     {:fx/type std-out-item
@@ -171,8 +173,7 @@
 
 (defn sidebar [_]
   {:fx/type      :scroll-pane
-   ;; :max-width     (/ (util/window-width) 3)
-   :max-width   350
+   :max-width     (/ (util/window-width) 3)
    :style-class  "kernel-sidebar"
    :fit-to-width true
    :content      {:fx/type :v-box
@@ -186,16 +187,17 @@
   {:fx/type :label
    :text    ""})
 
-(defn email-expanded [{{:email/keys [author address body] :as email} :email}]
-  {:fx/type :v-box
-   :spacing 10
-   :children [{:fx/type     :label
-               :style-class "kernel-email-view-meta"
-               :text        (str (when author author) " " (when address (str "<" address ">")))}
-              {:fx/type     :text-area
-               :style-class "kernel-email-view-body"
-               :text        body
-               :min-height  400}]})
+(defn email-expanded [{{:email/keys [author address body]} :email}]
+  (let [height (-> body str/split-lines count (* 17) (+ 25))]
+    {:fx/type     :v-box
+     :spacing     10
+     :min-height  height
+     :children    [{:fx/type     :label
+                    :style-class "kernel-email-view-meta"
+                    :text        (str (when author author) " " (when address (str "<" address ">")))}
+                   {:fx/type     :label
+                    :style-class "kernel-email-view-body"
+                    :text        body}]}))
 
 (defmethod events/event-handler ::select-email [{:keys [fx/context email]}]
   {:context (fx/swap-context context assoc :kernel.email/selected email)})
@@ -223,7 +225,9 @@
   (let [selected-email (fx/sub-ctx context selected-email)
         system-call    (fx/sub-ctx context selected-system-call)
         offset         (fx/sub-ctx context email-offset)
-        emails         (if system-call (lkml/emails-by-subject system-call 100 offset) [])]
+        emails         (if system-call
+                         (remove #(str/blank? (:email/body %)) (lkml/emails-by-subject system-call 100 offset))
+                         [])]
     {:fx/type  :v-box
      :children (if (empty? emails)
                  [{:fx/type email-empty}]
@@ -251,7 +255,7 @@
                  :label   (str email-count " emails about " system-call)}
                 {:fx/type       :scroll-pane
                  :style-class   "kernel-email"
-                 ;; :min-width     (* 2 (/ (util/window-width) 3))
+                 :min-width     (* 2 (/ (util/window-width) 3))
                  :fit-to-width  true
                  :fit-to-height true
                  :content       {:fx/type   :v-box

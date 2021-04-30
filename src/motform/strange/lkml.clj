@@ -72,7 +72,7 @@
                                 ORDER BY date
                                 LIMIT %d
                                 OFFSET %d"
-                               key s limit offset)])))
+                               key s limit offset)]))))
 
 (def emails-by-subject (emails-by-key "subject"))
 (def emails-by-body    (emails-by-key "body"))
