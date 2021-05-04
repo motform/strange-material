@@ -34,20 +34,20 @@
                 :basic-auth   ["" api-key]
                 :body         (json/write-str (merge param-defaults params))}))
 
-(defn completion [engine params]
+(defn completion-with [engine params]
   {:pre [(valid-engines engine)
          (set/subset? (set (keys params)) valid-params)]}
   (request (name engine) "completions" params))
+
+(defn response-body [response]
+  (-> response :body parse-json))
+
+(defn response-text [response]
+  (-> response :body parse-json :open-ai/choices first :open-ai/text))
 
 (comment 
   (def c
     (completion :davinci-instruct-beta
                 {:prompt     "Write a request to buy steel from a company that otherwise sells corn."
                  :max_tokens 200}))
-  
-  (defn get-body [resp]
-    (-> resp deref :body parse-json ;:open-ai/choices first :open-ai/text
-        ))
-
-  (get-body c)
   )
