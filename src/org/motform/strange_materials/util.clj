@@ -13,6 +13,16 @@
                {:seen #{} :acc []})
        :acc))
 
+(defn realize
+  "Blocks main thread while trying to realize `x`, sorry about that."
+  [x]
+  (while (not (realized? x)))
+  @x)
+
+(defn prompt [s]
+  (println s)
+  (read-line))
+
 (defn screen-height []
   (-> (Screen/getPrimary) .getBounds .getHeight))
 
