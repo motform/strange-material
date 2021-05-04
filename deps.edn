@@ -6,7 +6,7 @@
            org.clojure/core.cache            {:mvn/version "1.0.207"}}
 
  :aliases {:aai-client
-           {:exec-fn    org.motform.strange-materials.aai.client.core/-main
+           {:exec-fn    org.motform.strange-materials.aai.client.ui/-main
             :extra-deps {stylefruits/gniazdo               {:mvn/version "1.2.0"}}}
 
            :aai-server

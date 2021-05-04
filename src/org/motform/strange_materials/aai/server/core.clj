@@ -28,15 +28,17 @@
 
 (defn- completion [prompt]
   (-> (open-ai/completion-with :davinci-instruct-beta
-        {:prompt prompt :max_tokens 200})
+                               {:prompt prompt :max_tokens 64})
       util/realize
       open-ai/response-text
       str/triml))
 
 (defn- on-receive [channel message]
   (tap> (str "SERVER on-receive: " message))
-  (let [interception (str message (util/prompt "intercept"))
+  (let [interception (str message (util/prompt "intercept > "))
         [clean dirty] (pvalues (completion message) (completion interception))]
+    (tap> (str "SERVER clean:" clean))
+    (tap> (str "SERVER dirty:" dirty))
     (server/send! channel clean)
     (notify-other-clients channel dirty)))
 
@@ -60,8 +62,6 @@
 
 (defn -main [& _]
   (mount/start))
-
-(read-line)
 
 (comment
   (mount/start)
