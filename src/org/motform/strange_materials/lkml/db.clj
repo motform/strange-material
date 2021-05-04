@@ -1,18 +1,16 @@
-(ns motform.strange.lkml
+(ns org.motform.strange-materials.lkml.db
   (:require [clojure.string       :as str]
             [clojure.java.io      :as io]
             [clojure-mail.message :as email]
             [clojure.java.shell   :as shell]
             [next.jdbc.sql        :as sql]
             [next.jdbc            :as jdbc])
-  (:import  [java.io             ByteArrayInputStream]
-            [javax.mail          Session]
-            [javax.mail.internet MimeMessage]
-            [java.util           Properties]))
-
+  (:import  [java.io    ByteArrayInputStream]
+            [java.util  Properties]
+            [javax.mail Session]
+            [javax.mail.internet MimeMessage]))
 
 ;; PUBLIC-INBOX WRANGLING
-
 
 (defn- git-revisions [git-path]
   (->> (shell/sh "git" "-C" git-path "rev-list" "--pretty=oneline" "--reverse" "master")
@@ -58,9 +56,7 @@
    :subject (-> email :subject)
    :body    (-> email :body :body)})
 
-
 ;; DATABASE QUERY
-
 
 (def ^:private db {:dbtype "sqlite" :dbname "resources/db/lkml-fts"})
 (def ^:private ds (jdbc/get-datasource db))
@@ -87,23 +83,23 @@
 (def count-emails-by-subject (count-emails-by-key "subject"))
 (def count-emails-by-body    (count-emails-by-key "body"))
 
-
 (comment 
-  (count-emails-by-subject "open")
 
-  (def emails ;; [0 1 2]
-    (->> (lkml-paths "/Users/lla/Projects/github/lkml/")
-         (filter (fn [[list _]] (= list "lkml")))
-         (sort)
-         (drop 3)
-         (take 1)
-         (pmap (comp (partial pmap email->query)
-                     parse-emails))))
+(count-emails-by-subject "open")
 
-  (doseq [list emails]
-    (doseq [query list]
-      (sql/insert! ds :email query)))
+(def emails ;; [0 1 2]
+  (->> (lkml-paths "/Users/lla/Projects/github/lkml/")
+       (filter (fn [[list _]] (= list "lkml")))
+       (sort)
+       (drop 3)
+       (take 1)
+       (pmap (comp (partial pmap email->query)
+                   parse-emails))))
 
-  (sql/query ds ["SELECT author FROM email WHERE rowid = 10000"])
-  ;; (jdbc/execute! ds ["CREATE VIRTUAL TABLE email USING fts5(author, address, date, subject, body)"])
-  )
+(doseq [list emails]
+  (doseq [query list]
+    (sql/insert! ds :email query)))
+
+(sql/query ds ["SELECT author FROM email WHERE rowid = 10000"])
+;; (jdbc/execute! ds ["CREATE VIRTUAL TABLE email USING fts5(author, address, date, subject, body)"])
+)

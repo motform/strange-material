@@ -1,12 +1,18 @@
-(ns motform.strange.material.kernel
-  (:require [cljfx.api                       :as fx]      
-            [clojure.string                  :as str]     
-            [clojure.java.shell              :as shell]
-            [motform.strange.lkml            :as lkml]
-            [motform.strange.util            :as util]
-            [motform.strange.material.events :as events]  
-            [motform.strange.material.views  :as views])
+(ns org.motform.strange-materials.lkml.ui
+  (:require [cljfx.api          :as fx]      
+            [cljfx.css          :as css]
+            [clojure.string     :as str]     
+            [clojure.java.shell :as shell]
+            [org.motform.strange-materials.lkml.db     :as db]
+            [org.motform.strange-materials.lkml.styles :as styles]
+            [org.motform.strange-materials.util        :as util])
   (:import [javafx.scene.input KeyCode KeyEvent]))
+
+(defmulti event-handler :event/type)
+
+(defmethod event-handler :default [event]
+  (println "ERROR: Unknown event" (:event/type event))
+  (println event))
 
 ;;; COMMAND LINE
 
@@ -19,17 +25,17 @@
                :name (re-find #"^\w*" stack-frame)}))))
 
 (defn linux-command [context]
-  (fx/sub-val context :kernel.linux/command))
+  (fx/sub-val context :linux/command))
 
 (defn linux-command-selected [context]
-  (fx/sub-val context :kernel.linux.command/selected))
+  (fx/sub-val context :linux.command/selected))
 
 (defn linux-response [context]
   (let [id (fx/sub-ctx context linux-command-selected)]
-    (get (fx/sub-val context :kernel.linux/responses) id {:error "incorrect command index"})))
+    (get (fx/sub-val context :linux/responses) id {:error "incorrect command index"})))
 
 (defn linux-responses [context]
-  (fx/sub-val context :kernel.linux/responses))
+  (fx/sub-val context :linux/responses))
 
 (defn ssh-effect [{:keys [command]} dispatch!]
   (let [{:keys [out err]} (shell/sh "ssh" "vagrant@lkml" "strace" command)]
@@ -38,23 +44,23 @@
                                       :name   command
                                       :strace (parse-strace err)}})))
 
-(defmethod events/event-handler ::ssh-response [{:keys [fx/context response]}]
-  (let [id       (-> context :cljfx.context/m :kernel.linux/responses count)
+(defmethod event-handler ::ssh-response [{:keys [fx/context response]}]
+  (let [id       (-> context :cljfx.context/m :linux/responses count)
         resp (assoc response :command/id id)]
     {:context (fx/swap-context context #(-> %
-                                            (assoc-in [:kernel.linux/responses id] resp)
-                                            (assoc :kernel.linux.command/selected  id)
-                                            (assoc :kernel.linux/command "")
-                                            (assoc :kernel.email/offest  50)))}))
+                                            (assoc-in [:linux/responses id] resp)
+                                            (assoc :linux.command/selected  id)
+                                            (assoc :linux/command "")
+                                            (assoc :email/offest  50)))}))
 
-(defmethod events/event-handler ::change-command [{:fx/keys [context event]}]
-  {:context (fx/swap-context context assoc :kernel.linux/command event)})
+(defmethod event-handler ::change-command [{:fx/keys [context event]}]
+  {:context (fx/swap-context context assoc :linux/command event)})
 
-(defmethod events/event-handler ::select-command-history [{:keys [fx/context id]}]
-  {:context (fx/swap-context context assoc :kernel.linux.command/selected id)})
+(defmethod event-handler ::select-command-history [{:keys [fx/context id]}]
+  {:context (fx/swap-context context assoc :linux.command/selected id)})
 
 ;; TODO Make this non-blocking! 
-(defmethod events/event-handler ::submit-command [{:fx/keys [context event]}]
+(defmethod event-handler ::submit-command [{:fx/keys [context event]}]
   (when (= KeyCode/ENTER (.getCode ^KeyEvent event))
     {:ssh {:command (fx/sub-ctx context linux-command)}}))
 
@@ -62,10 +68,10 @@
   (let [history          (vals (fx/sub-ctx context linux-responses))
         selected-command (fx/sub-ctx context linux-command-selected)]
     {:fx/type  :h-box
-     :style-class "kernel-command-history"
+     :style-class "command-history"
      :children (for [{:command/keys [name id]} history]
                  {:fx/type          :label
-                  :style-class      ["kernel-command-history-tab" (when (= id selected-command) "kernel-command-history-tab-selected")]
+                  :style-class      ["command-history-tab" (when (= id selected-command) "command-history-tab-selected")]
                   :on-mouse-clicked {:event/type  ::select-command-history
                                      :id          id}
                   :text             (-> name (str/split #" ") first)})}))
@@ -73,7 +79,7 @@
 (defn command-line [{:fx/keys [context]}]
   (let [command   (fx/sub-ctx context linux-command)]
     {:fx/type     :v-box
-     :style-class ["kernel-command-line"]
+     :style-class ["command-line"]
      :children [{:fx/type         :text-field
                  :on-text-changed {:event/type ::change-command}
                  :on-key-pressed  {:event/type ::submit-command}
@@ -91,22 +97,22 @@
               {:call ps
                :name (re-find #"^\w*" ps)}))))
 
-(defmethod events/event-handler ::select-system-call [{:keys [fx/context system-call]}]
-  {:context (fx/swap-context context assoc :kernel/selected-system-call system-call)})
+(defmethod event-handler ::select-system-call [{:keys [fx/context system-call]}]
+  {:context (fx/swap-context context assoc :selected-system-call system-call)})
 
 (defn sidebar-container-label [{:keys [label]}]
   {:fx/type     :v-box
-   :style-class "kernel-sidebar-container-label"
+   :style-class "sidebar-container-label"
    :children    [{:fx/type     :label
-                  :style-class "kernel-sidebar-container-label-text"
+                  :style-class "sidebar-container-label-text"
                   :text        (str/upper-case label)}]})
 
 (defn selected-system-call [context]
-  (fx/sub-val context :kernel/selected-system-call))
+  (fx/sub-val context :selected-system-call))
 
 (defn system-call-item [{:keys [selected?] {:strace/keys [name]} :system-call}]
   {:fx/type          :h-box
-   :style-class      (if selected? "kernel-system-call-item-selected" "kernel-system-call-item")
+   :style-class      (if selected? "system-call-item-selected" "system-call-item")
    :on-mouse-clicked {:event/type  ::select-system-call
                       :system-call name}
    :children [{:fx/type :label
@@ -117,11 +123,11 @@
         selected-system-call     (fx/sub-ctx context selected-system-call)
         system-calls             (util/distinct-by-key strace :strace/name)]
     {:fx/type     :v-box
-     :style-class "kernel-sidebar-container"
+     :style-class "sidebar-container"
      :children    [{:fx/type sidebar-container-label
                     :label   "system calls"}
                    {:fx/type      :v-box
-                    :style-class  "kernel-sidebar-list"
+                    :style-class  "sidebar-list"
                     :spacing      3
                     :children     (for [{:strace/keys [name] :as system-call} system-calls]
                                     {:fx/type     system-call-item
@@ -130,19 +136,19 @@
 
 (defn std-out-item [{:keys [line]}]
   {:fx/type     :h-box
-   :style-class "kernel-std-out-item"
+   :style-class "std-out-item"
    :children [{:fx/type     :label
-               :style-class "kernel-std-out-item-text"
+               :style-class "std-out-item-text"
                :text        line}]})
 
 (defn std-out-view [{:fx/keys [context]}]
   (let [{:command/keys [output]} (fx/sub-ctx context linux-response)]
     {:fx/type     :v-box
-     :style-class ["kernel-sidebar-container"]
+     :style-class "sidebar-container"
      :children    [{:fx/type sidebar-container-label
                     :label   "output"}
                    {:fx/type      :v-box
-                    :style-class  ["kernel-sidebar-list" "kernel-std-out"]
+                    :style-class  ["sidebar-list" "std-out"]
                     :spacing      3
                     :children     (for [line (if output (str/split-lines output) [])]
                                     {:fx/type std-out-item
@@ -150,7 +156,7 @@
 
 (defn stack-trace-item [{:keys [selected?] {:strace/keys [name frame]} :system-call}]
   {:fx/type          :h-box
-   :style-class      (if selected? "kernel-system-call-item-selected" "kernel-system-call-item")
+   :style-class      (if selected? "system-call-item-selected" "system-call-item")
    :on-mouse-clicked {:event/type  ::select-system-call
                       :system-call name}
    :children [{:fx/type :label
@@ -160,11 +166,11 @@
   (let [{:command/keys [strace]} (fx/sub-ctx context linux-response)
         selected-system-call     (fx/sub-ctx context selected-system-call)]
     {:fx/type     :v-box
-     :style-class "kernel-sidebar-container"
+     :style-class "sidebar-container"
      :children    [{:fx/type sidebar-container-label
                     :label   "stack trace"}
                    {:fx/type      :v-box
-                    :style-class  "kernel-sidebar-list"
+                    :style-class  "sidebar-list"
                     :spacing      3
                     :children     (for [{:strace/keys [name] :as system-call} strace]
                                     {:fx/type     stack-trace-item
@@ -173,8 +179,8 @@
 
 (defn sidebar [_]
   {:fx/type      :scroll-pane
-   :max-width     (/ (util/window-width) 3)
-   :style-class  "kernel-sidebar"
+   ;; :max-width     (/ (util/window-width) 3)
+   :style-class  "sidebar"
    :fit-to-width true
    :content      {:fx/type :v-box
                   :children [{:fx/type std-out-view}
@@ -193,22 +199,22 @@
      :spacing     10
      :min-height  height
      :children    [{:fx/type     :label
-                    :style-class "kernel-email-view-meta"
+                    :style-class "email-view-meta"
                     :text        (str (when author author) " " (when address (str "<" address ">")))}
                    {:fx/type     :label
-                    :style-class "kernel-email-view-body"
+                    :style-class "email-view-body"
                     :text        body}]}))
 
-(defmethod events/event-handler ::select-email [{:keys [fx/context email]}]
-  {:context (fx/swap-context context assoc :kernel.email/selected email)})
+(defmethod event-handler ::select-email [{:keys [fx/context email]}]
+  {:context (fx/swap-context context assoc :email/selected email)})
 
 (defn email-view [{:keys [selected?] {:email/keys [subject rowid] :as email} :email}]
   {:fx/type          :v-box
-   :style-class      ["kernel-email-view" (when selected? "kernel-email-view-selected")]
+   :style-class      ["email-view" (when selected? "email-view-selected")]
    :on-mouse-clicked {:event/type ::select-email
                       :email      rowid}
    :children         [{:fx/type     :label
-                       :style-class (if selected? "kernel-email-view-topic" "")
+                       :style-class (if selected? "email-view-topic" "")
                        :text        subject}
                       (if selected?
                         {:fx/type email-expanded
@@ -216,17 +222,17 @@
                         {:fx/type :v-box})]})
 
 (defn selected-email [context]
-  (fx/sub-val context :kernel.email/selected))
+  (fx/sub-val context :email/selected))
 
 (defn email-offset [context]
-  (fx/sub-val context :kernel.email/offset))
+  (fx/sub-val context :email/offset))
 
 (defn email-list [{:fx/keys [context]}]
   (let [selected-email (fx/sub-ctx context selected-email)
         system-call    (fx/sub-ctx context selected-system-call)
         offset         (fx/sub-ctx context email-offset)
         emails         (if system-call
-                         (remove #(str/blank? (:email/body %)) (lkml/emails-by-subject system-call 100 offset))
+                         (remove #(str/blank? (:email/body %)) (db/emails-by-subject system-call 100 offset))
                          [])]
     {:fx/type  :v-box
      :children (if (empty? emails)
@@ -236,8 +242,8 @@
                     :email      email
                     :selected?  (= (:email/rowid email) selected-email)}))}))
 
-(defmethod events/event-handler ::increment-email-offset [{:fx/keys [context]}]
-  {:context (fx/swap-context context update :kernel.email/offset + 20)})
+(defmethod event-handler ::increment-email-offset [{:fx/keys [context]}]
+  {:context (fx/swap-context context update :email/offset + 20)})
 
 (defn email-offset-button [_]
   {:fx/type          :label
@@ -249,24 +255,28 @@
 
 (defn system-call-emails [{:fx/keys [context]}]
   (let [system-call (fx/sub-ctx context selected-system-call)
-        email-count (lkml/count-emails-by-subject system-call)]
+        email-count (db/count-emails-by-subject system-call)]
     {:fx/type :v-box
      :children [{:fx/type sidebar-container-label
                  :label   (str email-count " emails about " system-call)}
                 {:fx/type       :scroll-pane
-                 :style-class   "kernel-email"
-                 :min-width     (* 2 (/ (util/window-width) 3))
+                 :style-class   "email"
+                 ;; :min-width     (* 2 (/ (util/window-width) 3))
                  :fit-to-width  true
                  :fit-to-height true
                  :content       {:fx/type   :v-box
-                                 :children  [
-                                             {:fx/type email-list}
+                                 :children  [{:fx/type email-list}
                                              {:fx/type email-offset-button}]}}]}))
 
-(defmethod views/panel :panel/kernel [_]
-  {:fx/type       :v-box
-   :style-class   ["panel"]
-   :children      [{:fx/type :border-pane
-                    :top     {:fx/type command-line}
-                    :left    {:fx/type sidebar}
-                    :center  {:fx/type system-call-emails}}]})
+(defn root [_]
+  {:fx/type :stage
+   :width   960
+   :height  540
+   :showing true
+   :title   "Excursion - The Linux Kernel Mailing List"
+   :scene   {:fx/type :scene
+             :stylesheets [(::css/url styles/styles)]
+             :root        {:fx/type :border-pane
+                           :top     {:fx/type command-line}
+                           :left    {:fx/type sidebar}
+                           :center  {:fx/type system-call-emails}}}})

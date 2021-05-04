@@ -1,4 +1,4 @@
-(ns motform.strange.util
+(ns org.motform.strange-materials.util
   (:import [javafx.stage Screen Window]))
 
 (defn index-by-key [ms idx-k]

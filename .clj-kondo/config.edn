@@ -1,0 +1,1 @@
+{:skip-args [mount.core/defstate]}

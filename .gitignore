@@ -1,3 +1,6 @@
 /out/
+/.clj-kondo/.cache/*
 *.log
 /resources/font*
+/resources/edn*
+/resources/db*
