@@ -1,4 +1,4 @@
-(ns org.motform.strange-materials.aai.open-ai
+(ns org.motform.strange-materials.aai.server.open-ai
   (:require [org.httpkit.client :as client]
             [clojure.data.json  :as json]
             [clojure.set        :as set]

@@ -1,4 +1,4 @@
-(ns org.motform.strange-materials.aai.client
+(ns org.motform.strange-materials.aai.client.core
   (:require [gniazdo.core :as websocket]))
 
 (defn on-receive [message]

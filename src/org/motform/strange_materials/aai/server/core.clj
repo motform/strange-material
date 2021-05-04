@@ -1,10 +1,10 @@
-(ns org.motform.strange-materials.aai.server
+(ns org.motform.strange-materials.aai.server.core
   (:require [clojure.string     :as str]
             [mount.core         :as mount :refer [defstate]]
             [org.httpkit.server :as server]
             [reitit.ring        :as ring]
-            [org.motform.strange-materials.util        :as util]
-            [org.motform.strange-materials.aai.open-ai :as open-ai]))
+            [org.motform.strange-materials.util :as util]
+            [org.motform.strange-materials.aai.server.open-ai :as open-ai]))
 
 (set! *warn-on-reflection* true)
 
@@ -60,6 +60,8 @@
 
 (defn -main [& _]
   (mount/start))
+
+(read-line)
 
 (comment
   (mount/start)

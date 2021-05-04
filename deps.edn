@@ -6,11 +6,11 @@
            org.clojure/core.cache            {:mvn/version "1.0.207"}}
 
  :aliases {:aai-client
-           {:exec-fn    org.motform.strange-materials.aai.client/-main
+           {:exec-fn    org.motform.strange-materials.aai.client.core/-main
             :extra-deps {stylefruits/gniazdo               {:mvn/version "1.2.0"}}}
 
            :aai-server
-           {:exec-fn    org.motform.strange-materials.aai.server/-main
+           {:exec-fn    org.motform.strange-materials.aai.server.core/-main
             :extra-deps {org.clojure/data.json             {:mvn/version "2.2.2"}
                          http-kit/http-kit                 {:mvn/version "2.5.3"}
                          metosin/reitit                    {:mvn/version "0.5.13"}

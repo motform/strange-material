@@ -20,7 +20,8 @@
   @x)
 
 (defn prompt [s]
-  (println s)
+  (print s)
+  (flush)
   (read-line))
 
 (defn screen-height []
