@@ -68,7 +68,7 @@
                                 ORDER BY date
                                 LIMIT %d
                                 OFFSET %d"
-                               key s limit offset)]))))
+                               key s limit offset)])))
 
 (def emails-by-subject (emails-by-key "subject"))
 (def emails-by-body    (emails-by-key "body"))
@@ -84,22 +84,21 @@
 (def count-emails-by-body    (count-emails-by-key "body"))
 
 (comment 
+  (count-emails-by-subject "open")
 
-(count-emails-by-subject "open")
+  (def emails ;; [0 1 2]
+    (->> (lkml-paths "/Users/lla/Projects/github/lkml/")
+         (filter (fn [[list _]] (= list "lkml")))
+         (sort)
+         (drop 3)
+         (take 1)
+         (pmap (comp (partial pmap email->query)
+                     parse-emails))))
 
-(def emails ;; [0 1 2]
-  (->> (lkml-paths "/Users/lla/Projects/github/lkml/")
-       (filter (fn [[list _]] (= list "lkml")))
-       (sort)
-       (drop 3)
-       (take 1)
-       (pmap (comp (partial pmap email->query)
-                   parse-emails))))
+  (doseq [list emails]
+    (doseq [query list]
+      (sql/insert! ds :email query)))
 
-(doseq [list emails]
-  (doseq [query list]
-    (sql/insert! ds :email query)))
-
-(sql/query ds ["SELECT author FROM email WHERE rowid = 10000"])
-;; (jdbc/execute! ds ["CREATE VIRTUAL TABLE email USING fts5(author, address, date, subject, body)"])
-)
+  (sql/query ds ["SELECT author FROM email WHERE rowid = 10000"])
+  ;; (jdbc/execute! ds ["CREATE VIRTUAL TABLE email USING fts5(author, address, date, subject, body)"])
+  )

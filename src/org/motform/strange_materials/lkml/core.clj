@@ -1,8 +1,7 @@
 (ns org.motform.strange-materials.lkml.core
   (:require [cljfx.api          :as fx]
             [clojure.core.cache :as cache]
-            [org.motform.strange-materials.lkml.ui     :as ui]
-            [org.motform.strange-materials.lkml.views  :as views]))
+            [org.motform.strange-materials.lkml.ui :as ui]))
 
 (def *state
   (atom
@@ -26,7 +25,7 @@
 (def renderer
   (fx/create-renderer
    :middleware (comp fx/wrap-context-desc
-                     (fx/wrap-map-desc #'views/root))
+                     (fx/wrap-map-desc #'ui/root))
    :opts {:fx.opt/map-event-handler event-handler
           :fx.opt/type->lifecycle #(or (fx/keyword->lifecycle %)
                                        (fx/fn->lifecycle-with-context %))}))
@@ -35,7 +34,7 @@
 
 (comment
   (renderer)
-  (swap! org.motform.strange-material.lkml.core/*state identity) ; touch state
+  (swap! org.motform.strange-materials.lkml.core/*state identity) ; touch state
 
   (require 'clojure.string)
 

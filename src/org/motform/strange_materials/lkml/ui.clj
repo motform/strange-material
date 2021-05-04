@@ -88,15 +88,6 @@
 
 ;;; SIDEBAR
 
-(def strace-out
-  (->> "resources/txt/strace_ls.txt"
-       slurp
-       str/split-lines
-       drop-last
-       (map (fn [ps] #:process
-              {:call ps
-               :name (re-find #"^\w*" ps)}))))
-
 (defmethod event-handler ::select-system-call [{:keys [fx/context system-call]}]
   {:context (fx/swap-context context assoc :selected-system-call system-call)})
 

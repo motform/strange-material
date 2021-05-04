@@ -50,78 +50,78 @@
 
       ".text-area" {:-fx-background-color "red"}
 
-      "command-line" {:-fx-padding    [0 0 0 0]
-                      :-fx-background (colors :frame)}
+      ".command-line" {:-fx-padding    [0 0 0 0]
+                       :-fx-background (colors :frame)}
 
-      "command-history" {:-fx-padding 0
-                         "-tab" {:-fx-text-fill        (colors :foreground)
-                                 :-fx-padding          [5 10 2 10]
-                                 :-fx-border-width     [1 1 0 0]
-                                 :-fx-font-size        16
-                                 :-fx-border-color     (colors :frame)
-                                 :-fx-font-family      "Inconsolata"
-                                 ":hover" {:-fx-background-color (colors :frame)
-                                           :-fx-text-fill        (colors :background)}
-                                 "-selected" {:-fx-background-color (colors :frame)
-                                              :-fx-text-fill        (colors :background)}}}
+      ".command-history" {:-fx-padding 0
+                          "-tab" {:-fx-text-fill        (colors :foreground)
+                                  :-fx-padding          [5 10 2 10]
+                                  :-fx-border-width     [1 1 0 0]
+                                  :-fx-font-size        16
+                                  :-fx-border-color     (colors :frame)
+                                  :-fx-font-family      "Inconsolata"
+                                  ":hover" {:-fx-background-color (colors :frame)
+                                            :-fx-text-fill        (colors :background)}
+                                  "-selected" {:-fx-background-color (colors :frame)
+                                               :-fx-text-fill        (colors :background)}}}
 
-      "sidebar" {:-fx-font-size    12
-                 :-fx-border-color (colors :frame)
-                 :-fx-border-width [1 0 0 0]
+      ".sidebar" {:-fx-font-size    12
+                  :-fx-border-color (colors :frame)
+                  :-fx-border-width [1 0 0 0]
 
-                 "-container" {"-label"
-                               {:-fx-padding          [5 5 5 10]
-                                :-fx-font-size        12
-                                :-fx-background-color (colors :frame)
-                                "-text" {:-fx-text-fill (colors :background)}}}
+                  "-container" {"-label"
+                                {:-fx-padding          [5 5 5 10]
+                                 :-fx-font-size        12
+                                 :-fx-background-color (colors :frame)
+                                 "-text" {:-fx-text-fill (colors :background)}}}
 
-                 "-list" {:-fx-background-color (colors :sidebar)
-                          :-fx-border-width     0
-                          :-fx-padding [10 0 10 0]}}
+                  "-list" {:-fx-background-color (colors :sidebar)
+                           :-fx-border-width     0
+                           :-fx-padding [10 0 10 0]}}
 
-      "system-call-item" {:-fx-background-color (colors :sidebar)
-                          :-fx-padding          [2 0 2 10]
-                          :-fx-font-size        14
-                          :-fx-font-family      "Inconsolata"
-                          ":hover"    {:-fx-background-color (colors :highlight)}
-                          "-selected" {:-fx-background-color (colors :highlight)
-                                       :-fx-padding          [2 0 2 10]
-                                       :-fx-font-size        14
-                                       :-fx-font-family      "Inconsolata"}}
+      ".system-call-item" {:-fx-background-color (colors :sidebar)
+                           :-fx-padding          [2 0 2 10]
+                           :-fx-font-size        14
+                           :-fx-font-family      "Inconsolata"
+                           ":hover"    {:-fx-background-color (colors :highlight)}
+                           "-selected" {:-fx-background-color (colors :highlight)
+                                        :-fx-padding          [2 0 2 10]
+                                        :-fx-font-size        14
+                                        :-fx-font-family      "Inconsolata"}}
 
-      "std-out" {:-fx-background-color (colors :frame)
-                 :-fx-padding          [20 0]
+      ".std-out" {:-fx-background-color (colors :frame)
+                  :-fx-padding          [20 0]
 
-                 "-item" {:-fx-background-color (colors :frame)
-                          :-fx-padding          [2 0 2 10]
+                  "-item" {:-fx-background-color (colors :frame)
+                           :-fx-padding          [2 0 2 10]
 
-                          "-text" {:-fx-background-color (colors :frame)
-                                   :-fx-text-fill        (colors :background)
-                                   :-fx-font-size        14
-                                   :-fx-font-family      "Inconsolata"}}}
+                           "-text" {:-fx-background-color (colors :frame)
+                                    :-fx-text-fill        (colors :background)
+                                    :-fx-font-size        14
+                                    :-fx-font-family      "Inconsolata"}}}
 
-      "email" {:-fx-background-color "transparent"
-               :-fx-padding          0
-               :-fx-border-color     (colors :frame)
-               :-fx-border-width     [1 0 1 0]
+      ".email" {:-fx-background-color "transparent"
+                :-fx-padding          0
+                :-fx-border-color     (colors :frame)
+                :-fx-border-width     [1 0 1 0]
 
-               "-view" {:-fx-padding      10
-                        :-fx-border-width [0 0 1 0]
-                        :-fx-border-color (colors :border)
-                        :-fx-font-size    15
-                        ":hover"    {:-fx-background-color (colors :selection)}
+                "-view" {:-fx-padding      10
+                         :-fx-border-width [0 0 1 0]
+                         :-fx-border-color (colors :border)
+                         :-fx-font-size    15
+                         ":hover"    {:-fx-background-color (colors :selection)}
 
-                        "-topic"    {:-fx-padding      [0 0 5 0]}
+                         "-topic"    {:-fx-padding      [0 0 5 0]}
 
-                        "-selected" {:-fx-background-color (colors :selection)}
+                         "-selected" {:-fx-background-color (colors :selection)}
 
-                        "-meta"     {:-fx-text-fill (colors :meta)
-                                     :-fx-font-size 11}
+                         "-meta"     {:-fx-text-fill (colors :meta)
+                                      :-fx-font-size 11}
 
-                        "-body"     {:-fx-padding          [10 0 0 10]
-                                     :-fx-font-size 15
-                                     :-fx-font-family      "Inconsolata"}
+                         "-body"     {:-fx-padding          [10 0 0 10]
+                                      :-fx-font-size 15
+                                      :-fx-font-family      "Inconsolata"}
 
-                        "-offset-button" {:-fx-alignment "CENTER"
-                                          :-fx-text-fill "red"
-                                          :-fx-font-size 10}}}})))
+                         "-offset-button" {:-fx-alignment "CENTER"
+                                           :-fx-text-fill "red"
+                                           :-fx-font-size 10}}}})))
