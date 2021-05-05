@@ -1,5 +1,6 @@
 (ns org.motform.strange-materials.aai.server.core
-  (:require [clojure.string     :as str]
+  (:require [clojure.edn        :as edn]
+            [clojure.string     :as str]
             [mount.core         :as mount :refer [defstate]]
             [org.httpkit.server :as server]
             [reitit.ring        :as ring]
@@ -26,17 +27,23 @@
   (doseq [channel (remove #{excluded-channel} @channels)]
     (server/send! channel message)))
 
-(defn- completion [prompt]
-  (-> (open-ai/completion-with :davinci-instruct-beta
-                               {:prompt prompt :max_tokens 64})
-      util/realize
-      open-ai/response-text
-      str/triml))
+(defn- completion [message]
+  (let [{:keys [name prompt] :as p} (edn/read-string message)]
+    (-> (open-ai/completion-with :davinci-instruct-beta
+                                 {:prompt prompt :max_tokens 64})
+        util/realize
+        open-ai/response-text
+        str/triml)))
+
+(defn remove-period [s]
+  (str/replace s #"\." ""))
 
 (defn- on-receive [channel message]
   (tap> (str "SERVER on-receive: " message))
-  (let [interception (str message (util/prompt "intercept > "))
-        [clean dirty] (pvalues (completion message) (completion interception))]
+  (let [{:keys [name prompt] :as p} (edn/read-string message)
+        interception (str (remove-period prompt) (util/prompt "intercept > "))
+        [clean dirty] (pvalues (completion prompt) (completion interception))]
+    (def p p)
     (tap> (str "SERVER clean:" clean))
     (tap> (str "SERVER dirty:" dirty))
     (server/send! channel clean)

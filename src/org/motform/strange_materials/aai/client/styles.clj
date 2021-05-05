@@ -48,27 +48,21 @@
                      :-fx-font-size        25
                      :-fx-background-radius 0}
 
-      ".pane" {:-fx-padding   20
-               :-fx-font-size 18}
+      ".pane" {:-fx-font-size 18}
 
-      ".quota" {"-container" {:-fx-padding [0 0 10 0]}}
+      ".quota" {"-container" {:-fx-padding 20}}
 
-      ".chat" {"-container" {:-fx-padding 0
-                             :-fx-border-width 1
-                             :-fx-border-color (colors :border)}
+      ".chat" {"-container" {:-fx-padding 0}
 
                "-message" {:-fx-padding 5 
-                           :-fx-background-color (colors :selection)
                            :-fx-border-radius 5
-                           :-fx-border-color (colors :border)
-                           :-fx-border-width 1
                            ":last-visible" {:-fx-padding 50}
                            "-container"    {:-fx-padding [10 20]}
                            "-author"       {:-fx-text-fill (colors :border)
                                             :-fx-padding   [0 0 10 0]}}
 
-               "-input" {"-container" {:-fx-border-width [1 0]
-                                       :-fx-border-color (colors :border)
+               "-input" {"-container" {:-fx-border-width     [1 0]
+                                       :-fx-border-color     (colors :border)
                                        :-fx-background-color (colors :selection)
-                                       :-fx-padding [10 10 10 20]}}}
+                                       :-fx-padding          [15 10 15 20]}}}
       })))

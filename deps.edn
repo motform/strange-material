@@ -17,6 +17,7 @@
                          mount/mount                       {:mvn/version "0.1.16"}}}
 
            :lkml
-           {:extra-deps {com.github.seancorfield/next.jdbc {:mvn/version "1.1.646"}
+           {:exec-fn    org.motform.strange-materials.lkml.core/-main
+            :extra-deps {com.github.seancorfield/next.jdbc {:mvn/version "1.1.646"}
                          io.forward/clojure-mail           {:mvn/version "1.0.8"}
                          org.xerial/sqlite-jdbc            {:mvn/version "3.30.1"}}}}}

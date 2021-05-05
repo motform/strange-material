@@ -3,6 +3,8 @@
             [clojure.core.cache :as cache]
             [org.motform.strange-materials.lkml.ui :as ui]))
 
+;; TODO move all this to ui namespace
+
 (def *state
   (atom
    (fx/create-context
@@ -30,7 +32,8 @@
           :fx.opt/type->lifecycle #(or (fx/keyword->lifecycle %)
                                        (fx/fn->lifecycle-with-context %))}))
 
-(fx/mount-renderer *state renderer)
+(defn -main [& _]
+  (fx/mount-renderer *state renderer))
 
 (comment
   (renderer)
