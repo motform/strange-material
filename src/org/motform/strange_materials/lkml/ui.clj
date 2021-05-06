@@ -138,12 +138,14 @@
      :style-class "sidebar-container"
      :children    [{:fx/type sidebar-container-label
                     :label   "output"}
-                   {:fx/type      :v-box
-                    :style-class  ["sidebar-list" "std-out"]
-                    :spacing      3
-                    :children     (for [line (if output (str/split-lines output) [])]
-                                    {:fx/type std-out-item
-                                     :line    line})}]}))
+                   {:fx/type     :v-box
+                    :style-class "std-out-container"
+                    :children    [{:fx/type      :v-box
+                                   :style-class  ["sidebar-list" "std-out"]
+                                   :spacing      3
+                                   :children     (for [line (if output (str/split-lines output) [])]
+                                                   {:fx/type std-out-item
+                                                    :line    line})}]}]}))
 
 (defn stack-trace-item [{:keys [selected?] {:strace/keys [name frame]} :system-call}]
   {:fx/type          :h-box
@@ -226,6 +228,7 @@
                          (remove #(str/blank? (:email/body %)) (db/emails-by-subject system-call 100 offset))
                          [])]
     {:fx/type  :v-box
+     :style-class "email-list"
      :children (if (empty? emails)
                  [{:fx/type email-empty}]
                  (for [email emails]
@@ -248,6 +251,7 @@
   (let [system-call (fx/sub-ctx context selected-system-call)
         email-count (db/count-emails-by-subject system-call)]
     {:fx/type :v-box
+     :style-class "email-container"
      :children [{:fx/type sidebar-container-label
                  :label   (str email-count " emails about " system-call)}
                 {:fx/type       :scroll-pane
