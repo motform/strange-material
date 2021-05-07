@@ -117,13 +117,17 @@
      :style-class "sidebar-container"
      :children    [{:fx/type sidebar-container-label
                     :label   "system calls"}
-                   {:fx/type      :v-box
+                   {:fx/type      :h-box
                     :style-class  "sidebar-list"
                     :spacing      3
-                    :children     (for [{:strace/keys [name] :as system-call} system-calls]
-                                    {:fx/type     system-call-item
-                                     :system-call system-call
-                                     :selected?   (= name selected-system-call)})}]}))
+                    :children     (for [subsection (partition-all 10 system-calls)]
+                                    {:fx/type  :v-box
+                                     :style-class "sidebar-list-sublist"
+                                     :min-width 100
+                                     :children (for [{:strace/keys [name] :as system-call} subsection]
+                                                 {:fx/type     system-call-item
+                                                  :system-call system-call
+                                                  :selected?   (= name selected-system-call)})})}]}))
 
 (defn std-out-item [{:keys [line]}]
   {:fx/type     :h-box
@@ -176,8 +180,9 @@
    :style-class  "sidebar"
    :fit-to-width true
    :content      {:fx/type :v-box
-                  :children [{:fx/type std-out-view}
-                             {:fx/type system-call-view}
+                  :children [{:fx/type :h-box
+                              :children [{:fx/type system-call-view}
+                                         {:fx/type std-out-view}]}
                              {:fx/type stack-trace-view}]}})
 
 ;;; EMAILS

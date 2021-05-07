@@ -74,8 +74,9 @@
                                  :-fx-font-size        12
                                  "-text" {:-fx-text-fill (colors :foreground)}}}
 
-                  "-list" {:-fx-border-width     0
-                           :-fx-padding 10}}
+                  "-list" {:-fx-padding 10
+                           :-fx-spacing 5
+                           "-sublist" {:-fx-spacing 5}}}
 
       ".system-call-item" {:-fx-padding          [3 0 3 10]
                            :-fx-border-width     1
@@ -94,16 +95,14 @@
                                         :-fx-border-radius    10
                                         :-fx-font-family      "Inconsolata"}}
 
-      ".std-out" {:-fx-padding          [10 0]
-                  :-fx-border-color     (colors :frame)
-                  :-fx-border-radius    10
-                  :-fx-border-width     1
+      ".std-out" {:-fx-padding          0
                   "-container" {:-fx-padding 10}
                   "-item" {:-fx-padding [2 0 2 10]
                            "-text" {:-fx-font-size   14
                                     :-fx-font-family "Inconsolata"}}}
 
       ".email" {:-fx-background-color "transparent"
+                :-fx-font-family "Inconsolata"
                 "-container" {:-fx-border-color     (colors :frame)
                               :-fx-border-width     [1 0 0 0]}
                 "-list" {:-fx-spacing 5
