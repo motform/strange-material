@@ -116,7 +116,7 @@
     {:fx/type     :v-box
      :style-class "sidebar-container"
      :children    [{:fx/type sidebar-container-label
-                    :label   "system calls"}
+                    :label   (str (count system-calls)" system calls")}
                    {:fx/type      :h-box
                     :style-class  "sidebar-list"
                     :spacing      3
@@ -165,7 +165,7 @@
     {:fx/type     :v-box
      :style-class "sidebar-container"
      :children    [{:fx/type sidebar-container-label
-                    :label   "stack trace"}
+                    :label   (str "stack trace (" (count strace) " calls)")}
                    {:fx/type      :v-box
                     :style-class  "sidebar-list"
                     :spacing      3
@@ -181,6 +181,7 @@
    :fit-to-width true
    :content      {:fx/type :v-box
                   :children [{:fx/type :h-box
+                              :spacing 20
                               :children [{:fx/type system-call-view}
                                          {:fx/type std-out-view}]}
                              {:fx/type stack-trace-view}]}})
@@ -245,12 +246,12 @@
   {:context (fx/swap-context context update :email/offset + 20)})
 
 (defn email-offset-button [_]
-  {:fx/type          :label
-   :style            {:-fx-alignment "CENTER"
-                      :-fx-padding   15
-                      :-fx-font-size 12}
-   :on-mouse-clicked {:event/type  ::increment-email-offset}
-   :text             (str/upper-case "load more emails")})
+  {:fx/type :v-box
+   :style-class "email-list-more-container"
+   :children [{:fx/type          :label
+               :style-class      "email-list-more"
+               :on-mouse-clicked {:event/type  ::increment-email-offset}
+               :text             (str/upper-case "load more emails")}]})
 
 (defn system-call-emails [{:fx/keys [context]}]
   (let [system-call (fx/sub-ctx context selected-system-call)

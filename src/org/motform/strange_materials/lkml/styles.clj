@@ -20,7 +20,7 @@
   (css/register
    ::style
    {".root" {:-fx-background-color (colors :background)
-             :-fx-font-family      "MD System"
+             :-fx-font-family       "Inconsolata"
              :-fx-font-size        20}
 
     ".scroll-bar:vertical"   {:-fx-pref-width  10}
@@ -65,7 +65,8 @@
 
                 "-container" {"-label"
                               {:-fx-padding   [20 5 5 15]
-                               :-fx-font-size 12
+                               :-fx-font-size 15
+                               :-fx-font-weight 700
                                "-text" {:-fx-text-fill (colors :foreground)}}}
 
                 "-list" {:-fx-padding 10
@@ -89,8 +90,8 @@
                                       :-fx-border-radius     10
                                       :-fx-font-family       "Inconsolata"}}
 
-    ".std-out" {"-container" {:-fx-padding 10}
-                "-item" {:-fx-padding [2 0 2 10]
+    ".std-out" {"-container" {}
+                "-item" {:-fx-padding [2 0 2 5]
                          "-text" {:-fx-font-size   14
                                   :-fx-font-family "Inconsolata"}}}
 
@@ -99,7 +100,14 @@
               "-container" {:-fx-border-color (colors :frame)
                             :-fx-border-width [1 0 0 0]}
               "-list" {:-fx-spacing 5
-                       :-fx-padding [10 0 0 0]}
+                       :-fx-padding [10 0 0 10]
+                       "-more" {:-fx-padding           8
+                                :-fx-border-radius     10
+                                :-fx-background-radius 10
+                                :-fx-border-color      (colors :frame)
+                                :-fx-font-size         15
+                                ":hover" {:-fx-background-color (colors :sidebar)}
+                                "-container" {:-fx-padding [20 10]}}}
               "-view" {:-fx-padding           10
                        :-fx-border-width      1
                        :-fx-border-radius     10
