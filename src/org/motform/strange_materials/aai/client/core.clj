@@ -3,10 +3,17 @@
 
 (defn on-receive [message]
   (tap> (str "CLIENT: on-receive: " message))
-  (println message))
+  (println "CLIENT: on-receive: " message))
 
-(defn send-prompt [socket prompt]
-  (websocket/send-msg socket prompt))
+(defn send-message
+  "The shape of the message map:
+  #:message
+  {:type #:message[prompt|handshake]
+   :from #:client{id #uuid name str}
+   :body str}"
+  [socket message]
+  (println message)
+  (websocket/send-msg socket (pr-str message)))
 
 (defn connect-socket [port on-receive]
   (websocket/connect (str "ws://localhost:" port "/ws")
@@ -21,7 +28,7 @@
     (println "prompt me a river")
     (while true
       (let [prompt (read-line)]
-        (send-prompt socket prompt)))))
+        (send-message socket (pr-str prompt))))))
 
 (comment
 

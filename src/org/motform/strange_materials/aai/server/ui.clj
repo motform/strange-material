@@ -21,9 +21,11 @@
   (atom
    (fx/create-context
     {::server? false
-     ::history {::alice []
-                ::bob   []}}
+     ::clients {}
+     ::prompt  nil} ; if not nil #{:client/id :prompt/clean :prompt/dirty}
     cache/lru-cache-factory)))
+
+;;;; VIEWS
 
 (defn completion [message]
   (let [{:keys [name prompt]} (edn/read-string message)]
@@ -34,8 +36,137 @@
         str/triml)))
 
 (defmethod event-handler ::server-request [{:keys [fx/context channel message]}]
-  (tap> "SERVER getting request")
-  {:context (fx/swap-context context assoc ::channel channel ::message message)})
+  (let [{:message/keys [headers body]} message]
+    (case (:message/type headers)
+      :message/prompt
+      {:context (fx/swap-context context assoc ::prompt {:client/id    (:client/id headers)
+                                                         :prompt/dirty body
+                                                         :prompt/clean body})}
+      :message/handshake
+      {:context (fx/swap-context context assoc-in [::clients (:client/id headers)] #:client{:channel  channel
+                                                                                            :id       (:client/id   headers)
+                                                                                            :name     (:client/name headers)
+                                                                                            :messages []})})))
+
+;;; Interception
+
+(defn sub-prompt  [context] (fx/sub-val context ::prompt))
+(defn sub-clients [context] (fx/sub-val context ::clients))
+
+(defn server-send-effect [{:keys [channel clean dirty]} _]
+  (println "server send" channel clean dirty)
+  (server/send-response channel {:clean clean :dirty dirty}))
+
+(defn- other-client [clients id]
+  (-> clients (dissoc id) first vals :client/id))
+
+(defmethod event-handler ::send-completions [{:keys [fx/context]}]
+  (let [{:keys [prompt/dirty prompt/clean client/id]} (fx/sub-ctx context sub-prompt)
+        clients (fx/sub-ctx context sub-clients)
+        channel (get-in clients [id :client/channel])
+        recipient (other-client clients id)
+        ]
+    {:server-send {:dirty dirty :clean clean :channel channel}
+     :context     (-> context
+                      (fx/swap-context assoc ::prompt nil)
+                      (fx/swap-context update-in [::clients id ::messages] conj clean)
+                      ;; (fx/swap-context update-in [::clients recipient ::messages] conj dirty)
+                      )}))
+
+(defmethod event-handler ::update-dirty-prompt [{:keys [fx/context fx/event]}]
+  {:context (fx/swap-context context assoc-in [::prompt :prompt/dirty] event)})
+
+(defn prompt-editor [{:keys [fx/context sender]}]
+  (let [{:prompt/keys [clean dirty]} (fx/sub-ctx context sub-prompt)]
+    {:fx/type     :v-box
+     :style-class "server-interception-editor"
+     :children    [{:fx/type :v-box
+                    :style-class "server-interception-editor-section"
+                    :spacing 10
+                    :children [{:fx/type     :label
+                                :style-class "server-interception-editor-label"
+                                :text        (str "Prompt from " sender)}
+                               {:fx/type     :label
+                                :style-class "server-interception-editor-prompt"
+                                :text        clean}
+                               {:fx/type     :label
+                                :style-class "server-interception-editor-label"
+                                :text        "Clean completion "}
+                               {:fx/type     :label
+                                :style-class "server-interception-editor-prompt"
+                                :text        "huzzaz"}]}
+                   {:fx/type :v-box
+                    :spacing 10
+                    :style-class "server-interception-editor-section"
+                    :children [{:fx/type     :label
+                                :style-class "server-interception-editor-label" 
+                                :text        "Prompt editor"}
+                               {:fx/type         :text-field
+                                :style-class     "server-interception-editor-input"
+                                :text            dirty
+                                :on-text-changed {:event/type ::update-dirty-prompt}}
+                               {:fx/type     :label
+                                :style-class "server-interception-editor-label" 
+                                :text        "Dirty completion"}
+                               {:fx/type :label
+                                :style-class     "server-interception-editor-prompt"
+                                :text    "ooh no"}]}
+                   {:fx/type          :label
+                    :text             "Send message"
+                    :style-class      "server-interception-editor-submit"
+                    :on-mouse-clicked {:event/type ::send-completions}}]}))
+
+(defn sub-sender [context]
+  (get-in (fx/sub-val context ::clients) [(fx/sub-val context get-in [::prompt :client/id]) :client/name]))
+
+(defn interception-view [{:keys [fx/context]}]
+  (let [sender (fx/sub-ctx context sub-sender)]
+    {:fx/type     :v-box
+     :min-width   600
+     :style-class "server-interception-container"
+     :children    [{:fx/type     :label
+                    :padding 10
+                    :style-class "server-chat-view-name"
+                    :text        (str/upper-case "interception")}
+                   (if sender
+                     {:fx/type prompt-editor
+                      :sender  sender}
+                     {:fx/type :label
+                      :padding 10
+                      :text    "Waiting for prompt."})]}))
+
+;;; Chat
+
+(defn chat-view [{{:client/keys [name messages]} :client}]
+  {:fx/type     :v-box
+   :min-width   200
+   :style-class "server-chat-view"
+   :children    (concat [{:fx/type     :label
+                          :style-class "server-chat-view-name"
+                          :text        (str/upper-case (or name "awaiting client"))}]
+                        (if-not (empty? messages)
+                          (for [message messages]
+                            {:fx/type     :label
+                             :style-class "server-chat-view-message"
+                             :text        message})
+                          [{:fx/type util/empty-view}]))})
+
+(defn chat-panel [{:keys [fx/context]}]
+  (let [clients (fx/sub-ctx context sub-clients)
+        [c1 c2] (-> clients vals)]
+    {:fx/type     :grid-pane
+     :style-class "server-chat-panel"
+     ;; :column-constraints (repeat 3 {:fx/type :column-constraints :percent-width 100/3})
+     :children    [{:fx/type chat-view
+                    :client  c1
+                    :grid-pane/column 1 :grid-pane/vgrow :always}
+                   {:fx/type  interception-view
+                    :grid-pane/column 2 :grid-pane/vgrow :always}
+                   {:fx/type chat-view
+                    :client  c2
+                    :grid-pane/column 3 :grid-pane/vgrow :always}]}))
+
+;;; Server
 
 (defmethod event-handler ::connect-server [{:keys [port dispatch!]}]
   (tap> "Connect to server")
@@ -44,29 +175,6 @@
                             (dispatch! {:event/type ::server-request
                                         :channel    channel
                                         :message    message}))))
-
-;;;; VIEWS
-
-;;; Chat
-
-(defn interception-view [{:keys [fx/context]}]
-  {:fx/type  :v-box
-   :children [{:fx/type :label :text "intercept"}]})
-
-(defn chat-view [{:keys [accessor fx/context]}]
-  {:fx/type  :v-box
-   :children [{:fx/type :label :text "chat"}]})
-
-(defn chat-panel [{:keys [fx/context]}]
-  {:fx/type     :h-box
-   :style-class "server-chat-panel"
-   :children    [{:fx/type  chat-view
-                  :accessor ::alice}
-                 {:fx/type  interception-view}
-                 {:fx/type  chat-view
-                  :accessor ::bob}]})
-
-;;; Server
 
 (defn server-connect-effect [port]
   (fn [_ dispatch!]
@@ -83,21 +191,27 @@
 (defn sub-server? [context]
   (fx/sub-val context ::server?))
 
-;; todo add more status (connected clients?)
-(defn server-status [{:keys [fx/context]}]
+(defn server-connection-status [{:keys [fx/context]}]
   (let [server? (fx/sub-ctx context sub-server?)]
-    {:fx/type     :h-box
-     :style-class "server-status"
-     :children    [{:fx/type          :label 
-                    :style-class      "server-status-connect"
-                    :text             (if server? (str/upper-case "Connect to server") (str/upper-case "Server connected!"))
-                    :on-mouse-clicked {:event/type ::start-server-connection}}]}))
+    {:fx/type          :label 
+     :style-class      "server-status-connect"
+     :text             (if server? (str/upper-case "Server connected!") (str/upper-case "Connect to server"))
+     :on-mouse-clicked {:event/type ::start-server-connection}}))
+
+(defn server-status [_]
+  {:fx/type     :h-box
+   :style-class "server-status"
+   :children    (concat [{:fx/type server-connection-status}]
+                        (for [channel @server/channels] ; BUG does not work bc it comes from an outside data source
+                          {:fx/type     :label
+                           :style-class "server-status-channel"
+                           :text        (str channel)}))})
 
 ;;;; RENDERER
 
 (defn root [_]
   {:fx/type :stage
-   :width   600
+   :width   1000
    :height  1200
    :showing true
    :title   "Man in the middle!"
@@ -106,13 +220,9 @@
              :root        {:fx/type     :border-pane
                            :style-class "pane"
                            :top         {:fx/type server-status}
-                           :center      {:fx/type chat-panel}
-                           }}})
+                           :center      {:fx/type chat-panel}}}})
 
-(defn- random-port []
-  (+ 8000 (rand-int 1000)))
-
-(defn renderer [{:keys [port] :or {port (random-port)}}]
+(defn renderer [{:keys [port] :or {port (util/random-port)}}]
   (fx/create-renderer
    :middleware (comp fx/wrap-context-desc
                      (fx/wrap-map-desc #'root))
@@ -120,8 +230,9 @@
                                         (fx/wrap-co-effects
                                          {:fx/context (fx/make-deref-co-effect *state)})
                                         (fx/wrap-effects
-                                         {:context       (fx/make-reset-effect *state)
+                                         {:context        (fx/make-reset-effect *state)
                                           :dispatch       fx/dispatch-effect
+                                          :server-send    server-send-effect
                                           :server-connect (server-connect-effect port)}))
           :fx.opt/type->lifecycle #(or (fx/keyword->lifecycle %)
                                        (fx/fn->lifecycle-with-context %))}))
@@ -131,6 +242,7 @@
 
 (comment
   (swap! org.motform.strange-materials.aai.server.ui/*state identity)
-  (-> @*state :cljfx.context/m ::channel)
-  (-main)
+  (-> @*state :cljfx.context/m ::prompt)
+
+  (-main :port 8888)
   )

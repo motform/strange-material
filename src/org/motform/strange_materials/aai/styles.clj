@@ -40,7 +40,8 @@
                    :-fx-font-size        25
                    :-fx-background-radius 0}
 
-    ".pane" {:-fx-font-size 18}
+    ".pane" {:-fx-font-size 18
+             }
 
     ".quota" {"-container" {:-fx-padding 20}}
 
@@ -64,14 +65,62 @@
                           :-fx-border-color (colors :border)
                           :-fx-background-color (colors :selection)
 
+                          "-channel"
+                          {:-fx-padding       5
+                           :-fx-font-size     12
+                           :-fx-text-fill     (colors :border)
+                           :-fx-font-family   "Inconsolata"}
+
                           "-connect"
                           {:-fx-padding       5
                            :-fx-font-size     12
                            :-fx-text-fill     (colors :border)
                            :-fx-font-family   "Inconsolata"
-                           ":hover" {:-fx-background-color  (colors :border)}}}
-               "-chat"
-               {
-                "-panel"
-                {:-fx-spacing 10}}}
-    }))
+                           ":hover" {:-fx-background-color (colors :border)
+                                     :-fx-text-fill (colors :foreground)}}}
+
+               "-chat" {"-view"
+                        {:-fx-spacing 10
+                         :-fx-padding 10
+
+                         "-name"
+                         {:-fx-font-size   12
+                          :-fx-font-family "Inconsolata"
+                          :-fx-text-fill   (colors :meta)}
+
+                         "-message"
+                         {:-fx-padding [5 10]
+                          :-fx-border-width  1
+                          :-fx-border-radius 5
+                          :-fx-font-size     15
+                          :-fx-font-family   "Inconsolata"
+                          :-fx-background-color (colors :selection)
+                          :-fx-border-color     (colors :border)}}
+
+                        "-panel"
+                        {:-fx-spacing 20}}
+
+               "-interception" {"-container"
+                                {:-fx-spacing 10
+                                 :-fx-border-width  [0 1]
+                                 :-fx-border-color  (colors :border)}
+
+                                "-editor"
+                                {:-fx-spacing 10
+
+                                 "-input"
+                                 {".text-field" {:-fx-border-width      1
+                                                 :-fx-border-color      (colors :border)
+                                                 :-fx-background-color  (colors :border)}}
+
+                                 "-label"
+                                 {:-fx-padding     [5 0 2 0]
+                                  :-fx-font-size   15
+                                  :-fx-font-family "Inconsolata"
+                                  :-fx-text-fill   (colors :meta)}
+
+                                 "-section"
+                                 {:-fx-padding       10
+                                  :-fx-border-width  [1 0 0 0]
+                                  :-fx-border-color  (colors :border)}}}}}
+   ))

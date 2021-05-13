@@ -2,13 +2,13 @@
   (:require [cljfx.api          :as fx]      
             [cljfx.css          :as css]
             [clojure.core.cache :as cache]
+            [clojure.edn        :as edn]
             [org.motform.strange-materials.util            :as util]
             [org.motform.strange-materials.aai.styles      :as styles]
             [org.motform.strange-materials.aai.client.core :as client])
   (:import [javafx.scene.input KeyCode KeyEvent]))
 
 ;;;; CLJFX
-
 (defmulti event-handler :event/type)
 
 (defmethod event-handler :default [event]
@@ -19,6 +19,7 @@
   (atom
    (fx/create-context
     {::socket  false
+     ::id      (java.util.UUID/randomUUID)
      ::name    ""
      ::history []
      ::input   ""
@@ -50,23 +51,31 @@
 ;;; Chat
 
 (defmethod event-handler ::socket-response [{:keys [fx/context message]}]
-  {:context (fx/swap-context context update ::history conj message)})
+  (println message)
+  {:context (fx/swap-context context update ::history conj (:message/body message))})
 
 (defmethod event-handler ::connect-socket [{:keys [fx/context dispatch! port]}]
   (tap> "Connect socket")
   (letfn [(on-receive [message]
             (dispatch! {:event/type ::socket-response
-                        :message    #:message{:text message :author "John Doe"}}))]
-    {:context (fx/swap-context context assoc ::socket (client/connect-socket port on-receive))}))
+                        :message    (edn/read-string message)}))]
+    (let [socket (client/connect-socket port on-receive)]
+      {:context (fx/swap-context context assoc ::socket socket)
+       :ws      {:fx/context context :message/type :message/handshake :socket socket}})))
 
-(defn sub-name [context]
-  (fx/sub-val context ::name))
+(defn sub-name [context] (fx/sub-val context ::name))
+(defn sub-id   [context] (fx/sub-val context ::id))
 
-(defn ws-effect [{:keys [prompt fx/context]} dispatch!]
+(defn ws-effect [{:keys [message/body message/type fx/context socket]} dispatch!]
   (tap> "ws-effect")
-  (let [socket (fx/sub-ctx context sub-socket)
-        name   (fx/sub-ctx context sub-name)]
-    (client/send-prompt socket (pr-str {:prompt prompt :name name}))
+  (let [socket (or socket (fx/sub-ctx context sub-socket))
+        name   (fx/sub-ctx context sub-name)
+        id     (fx/sub-ctx context sub-id)]
+    (client/send-message socket #:message{:headers {:message/type type
+                                                    :message/id   (java.util.UUID/randomUUID)
+                                                    :client/name  name
+                                                    :client/id    id}
+                                          :body body})
     (dispatch! {:event/type ::update-input :fx/event ""})))
 
 (defmethod event-handler ::submit-name [{:keys [fx/context fx/event]}]
@@ -80,19 +89,18 @@
                 :port       port
                 :dispatch!  dispatch!})))
 
-(defn chat-message [{{:message/keys [author text]} :message}]
+(defn chat-message [{:keys [message]}]
   {:fx/type     :v-box
    :style-class "chat-message-container"
    :children    [{:fx/type     :v-box
                   :style-class "chat-message"
                   :children    [{:fx/type     :label
                                  :style-class "chat-message-author"
-                                 :text        author}
+                                 :text        "Dingo Star"}
                                 {:fx/type :label
-                                 :text    text}]}]})
+                                 :text    message}]}]})
 
-(defn sub-history [context]
-  (fx/sub-val context ::history))
+(defn sub-history [context] (fx/sub-val context ::history))
 
 (defn chat-history [{:keys [fx/context]}]
   (let [history (fx/sub-ctx context sub-history)]
@@ -101,8 +109,7 @@
                  {:fx/type chat-message
                   :message message})}))
 
-(defn sub-input [context]
-  (fx/sub-val context ::input))
+(defn sub-input [context] (fx/sub-val context ::input))
 
 (defmethod event-handler ::update-input [{:keys [fx/context fx/event]}]
   {:context (fx/swap-context context assoc ::input event)})
@@ -110,7 +117,8 @@
 (defmethod event-handler ::submit-message [{:keys [fx/context fx/event]}]
   (when (= KeyCode/ENTER (.getCode ^KeyEvent event))
     {:ws {:fx/context context
-          :prompt (fx/sub-ctx context sub-input)}}))
+          :message/type :message/prompt
+          :message/body (fx/sub-ctx context sub-input)}}))
 
 (defn chat-input [{:keys [fx/context]}]
   (let [input (fx/sub-ctx context sub-input)]
@@ -148,8 +156,7 @@
                    :text    name
                    :on-key-pressed  {:event/type ::submit-name}
                    :on-text-changed {:event/type ::update-name}}]}
-      {:fx/type :label
-       :text    ""})))
+      {:fx/type util/empty-view})))
 
 ;;;; RENDERER
 
@@ -190,5 +197,5 @@
 
   (-> @*state :cljfx.context/m ::history)
 
-  (-main)
+  (-main :port 8888)
   )

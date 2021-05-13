@@ -30,9 +30,13 @@
         edn/read-string
         (dispatch channel))))
 
-(defn send-response [channel [{:keys [clean dirty]}]]
-  (server/send! channel clean)
-  (notify-other-clients channel dirty))
+(defn send-response [channel {:keys [clean dirty]}]
+  (println "server-response" channel clean dirty)
+  (let [message {:message/headers {:message/id   (java.util.UUID/randomUUID)
+                                   :message/type :message/completion
+                                   :server/name  :completion}}]
+    (server/send!         channel (pr-str (assoc message :message/body clean)))
+    (notify-other-clients channel (pr-str (assoc message :message/body dirty)))))
 
 (defn handler [dispatch]
   (ring/ring-handler

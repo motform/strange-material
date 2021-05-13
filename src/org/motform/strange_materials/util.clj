@@ -46,6 +46,9 @@
 
 (defn empty-view
   "Dirty 'hack' to get a nil-view."
-  []
+  [_]
   {:fx/type :label
    :text    ""})
+
+(defn random-port []
+  (+ 8000 (rand-int 1000)))
