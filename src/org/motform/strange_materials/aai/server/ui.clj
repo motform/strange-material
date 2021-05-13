@@ -20,8 +20,9 @@
 (def *state
   (atom
    (fx/create-context
-    {::socket  false
-     }
+    {::server? false
+     ::history {::alice []
+                ::bob   []}}
     cache/lru-cache-factory)))
 
 (defn completion [message]
@@ -49,19 +50,21 @@
 ;;; Chat
 
 (defn interception-view [{:keys [fx/context]}]
-  {:fx/type :v-box})
+  {:fx/type  :v-box
+   :children [{:fx/type :label :text "intercept"}]})
 
 (defn chat-view [{:keys [accessor fx/context]}]
-  {:fx/type :v-box})
+  {:fx/type  :v-box
+   :children [{:fx/type :label :text "chat"}]})
 
-(defn chat-panel [_]
-  {:fx-type :h-box
-   :children []
-   #_[{:fx-type  chat-view
-       :accessor first}
-      {:fx-type  interception-view}
-      {:fx-type  chat-view
-       :accessor second}]})
+(defn chat-panel [{:keys [fx/context]}]
+  {:fx/type     :h-box
+   :style-class "server-chat-panel"
+   :children    [{:fx/type  chat-view
+                  :accessor ::alice}
+                 {:fx/type  interception-view}
+                 {:fx/type  chat-view
+                  :accessor ::bob}]})
 
 ;;; Server
 
@@ -72,18 +75,23 @@
                 :port       port
                 :dispatch!  dispatch!})))
 
-(defmethod event-handler ::start-server-connection [{:keys [_]}]
+(defmethod event-handler ::start-server-connection [{:keys [fx/context]}]
   (tap> "SERVER getting request")
-  {:server-connect {}})
+  {:context        (fx/swap-context context assoc ::server? true)
+   :server-connect {}})
+
+(defn sub-server? [context]
+  (fx/sub-val context ::server?))
 
 ;; todo add more status (connected clients?)
-(defn server-status [_]
-  {:fx/type          :v-box
-   :style-class      "server-status"
-   :children [{:fx/type          :label 
-               :style-class      "server-status-connect"
-               :text             "Connect server"
-               :on-mouse-clicked {:event/type ::start-server-connection}}]})
+(defn server-status [{:keys [fx/context]}]
+  (let [server? (fx/sub-ctx context sub-server?)]
+    {:fx/type     :h-box
+     :style-class "server-status"
+     :children    [{:fx/type          :label 
+                    :style-class      "server-status-connect"
+                    :text             (if server? (str/upper-case "Connect to server") (str/upper-case "Server connected!"))
+                    :on-mouse-clicked {:event/type ::start-server-connection}}]}))
 
 ;;;; RENDERER
 
@@ -98,6 +106,7 @@
              :root        {:fx/type     :border-pane
                            :style-class "pane"
                            :top         {:fx/type server-status}
+                           :center      {:fx/type chat-panel}
                            }}})
 
 (defn- random-port []

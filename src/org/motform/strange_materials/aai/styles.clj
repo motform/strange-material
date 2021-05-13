@@ -53,12 +53,25 @@
                          "-author"       {:-fx-text-fill (colors :border)
                                           :-fx-padding   [0 0 10 0]}}
 
-             "-input" {"-container" {:-fx-border-width     [1 0]
+             "-input" {"-container" {:-fx-padding          [15 10 15 20]
+                                     :-fx-border-width     [1 0]
                                      :-fx-border-color     (colors :border)
-                                     :-fx-background-color (colors :selection)
-                                     :-fx-padding          [15 10 15 20]}}}
-    ".server" {"-status" {:-fx-background-color "red"
-                          :-fx-padding 10
+                                     :-fx-background-color (colors :selection)}}}
+
+    ".server" {"-status" {:-fx-padding      10
+                          :-fx-spacing      10
+                          :-fx-border-width [0 0 1 0]
+                          :-fx-border-color (colors :border)
+                          :-fx-background-color (colors :selection)
+
                           "-connect"
-                          {:-fx-background-color "blue"}}}
+                          {:-fx-padding       5
+                           :-fx-font-size     12
+                           :-fx-text-fill     (colors :border)
+                           :-fx-font-family   "Inconsolata"
+                           ":hover" {:-fx-background-color  (colors :border)}}}
+               "-chat"
+               {
+                "-panel"
+                {:-fx-spacing 10}}}
     }))
