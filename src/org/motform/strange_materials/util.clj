@@ -1,4 +1,5 @@
 (ns org.motform.strange-materials.util
+  (:require [clojure.string :as str])
   (:import [javafx.stage Screen Window]))
 
 (defn index-by-key [ms idx-k]
@@ -24,6 +25,9 @@
   (flush)
   (read-line))
 
+(defn remove-period [s]
+  (str/replace s #"\." ""))
+
 (defn screen-height []
   (-> (Screen/getPrimary) .getBounds .getHeight))
 
@@ -39,3 +43,9 @@
   "Assumes that there is a single window open"
   []
   (-> (Window/getWindows) first .getWidth))
+
+(defn empty-view
+  "Dirty 'hack' to get a nil-view."
+  []
+  {:fx/type :label
+   :text    ""})

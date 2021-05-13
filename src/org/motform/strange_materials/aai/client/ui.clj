@@ -2,9 +2,9 @@
   (:require [cljfx.api          :as fx]      
             [cljfx.css          :as css]
             [clojure.core.cache :as cache]
-            [clojure.string     :as str]
-            [org.motform.strange-materials.aai.client.core   :as client]
-            [org.motform.strange-materials.aai.client.styles :as styles])
+            [org.motform.strange-materials.util            :as util]
+            [org.motform.strange-materials.aai.styles      :as styles]
+            [org.motform.strange-materials.aai.client.core :as client])
   (:import [javafx.scene.input KeyCode KeyEvent]))
 
 ;;;; CLJFX
@@ -45,20 +45,19 @@
        :padding     10
        :children    [{:fx/type :label
                       :text    (str "You have spent " spent " out of " total " tokens.")}]}
-      {:fx/type :label
-       :text    ""})))
+      {:fx/type util/empty-view})))
 
 ;;; Chat
 
 (defmethod event-handler ::socket-response [{:keys [fx/context message]}]
   {:context (fx/swap-context context update ::history conj message)})
 
-(defmethod event-handler ::connect-socket [{:keys [fx/context dispatch!]}]
+(defmethod event-handler ::connect-socket [{:keys [fx/context dispatch! port]}]
   (tap> "Connect socket")
   (letfn [(on-receive [message]
             (dispatch! {:event/type ::socket-response
-                        :message  #:message{:text message :author "John Doe"}}))]
-    {:context (fx/swap-context context assoc ::socket (client/connect-socket on-receive))}))
+                        :message    #:message{:text message :author "John Doe"}}))]
+    {:context (fx/swap-context context assoc ::socket (client/connect-socket port on-receive))}))
 
 (defn sub-name [context]
   (fx/sub-val context ::name))
@@ -74,9 +73,12 @@
   (when (= KeyCode/ENTER (.getCode ^KeyEvent event))
     {:ws-connect {:fx/context context}}))
 
-(defn ws-connect-effect [_ dispatch!]
-  (tap> "ws-connect-effect")
-  (dispatch! {:event/type ::connect-socket :dispatch! dispatch!}))
+(defn ws-connect-effect [port]
+  (fn [_ dispatch!]
+    (tap> "ws-connect-effect")
+    (dispatch! {:event/type ::connect-socket
+                :port       port
+                :dispatch!  dispatch!})))
 
 (defn chat-message [{{:message/keys [author text]} :message}]
   {:fx/type     :v-box
@@ -127,11 +129,7 @@
        :style-class "chat-container"
        :children    [{:fx/type chat-history}
                      {:fx/type chat-input}]}
-      {:fx/type :label
-       :text    ""})))
-
-(defn sub-name [context]
-  (fx/sub-val context ::name))
+      {:fx/type util/empty-view})))
 
 (defmethod event-handler ::update-name [{:keys [fx/context fx/event]}]
   {:context (fx/swap-context context assoc ::name event)})
@@ -169,7 +167,7 @@
                            :bottom      {:fx/type quota-meter}
                            :center      {:fx/type chat-container}}}})
 
-(def renderer
+(defn renderer [{:keys [port] :or {port 8080}}]
   (fx/create-renderer
    :middleware (comp fx/wrap-context-desc
                      (fx/wrap-map-desc #'root))
@@ -180,12 +178,12 @@
                                          {:context    (fx/make-reset-effect *state)
                                           :dispatch   fx/dispatch-effect
                                           :ws         ws-effect
-                                          :ws-connect ws-connect-effect}))
+                                          :ws-connect (ws-connect-effect port)}))
           :fx.opt/type->lifecycle #(or (fx/keyword->lifecycle %)
                                        (fx/fn->lifecycle-with-context %))}))
 
-(defn -main [& _]
-  (fx/mount-renderer *state renderer))
+(defn -main [& args]
+  (fx/mount-renderer *state (renderer args)))
 
 (comment
   (swap! org.motform.strange-materials.aai.client.ui/*state identity)

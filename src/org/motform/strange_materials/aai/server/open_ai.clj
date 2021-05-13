@@ -34,7 +34,9 @@
                 :basic-auth   ["" api-key]
                 :body         (json/write-str (merge param-defaults params))}))
 
-(defn completion-with [engine params]
+(defn completion-with
+  {:style/indent 1}
+  [engine params]
   {:pre [(valid-engines engine)
          (set/subset? (set (keys params)) valid-params)]}
   (request (name engine) "completions" params))

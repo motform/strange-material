@@ -8,16 +8,16 @@
 (defn send-prompt [socket prompt]
   (websocket/send-msg socket prompt))
 
-(defn connect-socket [on-receive]
-  (websocket/connect "ws://localhost:8081/ws"
+(defn connect-socket [port on-receive]
+  (websocket/connect (str "ws://localhost:" port "/ws")
     :on-receive on-receive
     :on-connect (fn [session] (tap> (str "CLIENT: Connected as: " session)))
     :on-close   (fn [status reason] (tap> (str "CLIENT: Disconnected with status: " status " due to " reason)))))
 
 (defn -main
   "Command line interface."
-  [& _]
-  (let [socket (connect-socket on-receive)]
+  [& {:keys [port]}]
+  (let [socket (connect-socket port on-receive)]
     (println "prompt me a river")
     (while true
       (let [prompt (read-line)]
@@ -26,7 +26,7 @@
 (comment
 
   (def socket
-    (websocket/connect "ws://localhost:8081/ws"
+    (websocket/connect "ws://localhost:8494/ws"
       :on-receive on-receive
       :on-connect (fn [session] (tap> (str "CLIENT: Connected as: " session)))
       :on-close   (fn [status reason] (tap> (str "CLIENT: Disconnected with status: " status " due to " reason)))))
