@@ -53,25 +53,30 @@
 (defn sub-prompt  [context] (fx/sub-val context ::prompt))
 (defn sub-clients [context] (fx/sub-val context ::clients))
 
-(defn server-send-effect [{:keys [channel clean dirty]} _]
-  (println "server send" channel clean dirty)
-  (server/send-response channel {:clean clean :dirty dirty}))
+(defn server-send-effect [{:keys [channel clean dirty sender]} _]
+  (server/send-response channel {:clean clean :dirty dirty :sender sender}))
 
 (defn- other-client [clients id]
-  (-> clients (dissoc id) first vals :client/id))
+  (->> (dissoc clients id)
+       vals
+       (map :client/id)
+       (remove nil?)
+       first))
 
 (defmethod event-handler ::send-completions [{:keys [fx/context]}]
   (let [{:keys [prompt/dirty prompt/clean client/id]} (fx/sub-ctx context sub-prompt)
-        clients (fx/sub-ctx context sub-clients)
-        channel (get-in clients [id :client/channel])
-        recipient (other-client clients id)
-        ]
-    {:server-send {:dirty dirty :clean clean :channel channel}
+        clients   (fx/sub-ctx context sub-clients)
+        recipient (other-client clients id)]
+    (def i id)
+    (def c clients)
+    {:server-send {:dirty   dirty
+                   :clean   clean
+                   :channel (get-in clients [id :client/channel])
+                   :sender  (get-in clients [id :client/name])}
      :context     (-> context
                       (fx/swap-context assoc ::prompt nil)
-                      (fx/swap-context update-in [::clients id ::messages] conj clean)
-                      ;; (fx/swap-context update-in [::clients recipient ::messages] conj dirty)
-                      )}))
+                      (fx/swap-context update-in [::clients id :client/messages] conj clean)
+                      (fx/swap-context update-in [::clients recipient :client/messages] conj dirty))}))
 
 (defmethod event-handler ::update-dirty-prompt [{:keys [fx/context fx/event]}]
   {:context (fx/swap-context context assoc-in [::prompt :prompt/dirty] event)})
@@ -242,7 +247,7 @@
 
 (comment
   (swap! org.motform.strange-materials.aai.server.ui/*state identity)
-  (-> @*state :cljfx.context/m ::prompt)
+  (-> @*state :cljfx.context/m ::clients)
 
-  (-main :port 8888)
+  (-main :port 8891)
   )

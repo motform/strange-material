@@ -31,39 +31,41 @@
 
 ;;; Tokens
 
-(defn sub-socket [context]
-  (fx/sub-val context ::socket))
-
-(defn sub-quota [context]
-  (fx/sub-val context ::quota))
+(defn sub-socket [context] (fx/sub-val context ::socket))
+(defn sub-quota  [context] (fx/sub-val context ::quota))
+(defn sub-name   [context] (fx/sub-val context ::name))
 
 (defn quota-meter [{:keys [fx/context]}]
-  (let [{:keys [total spent]} (fx/sub-ctx context sub-quota)
+  (let [name                  (fx/sub-ctx context sub-name)
+        {:keys [total spent]} (fx/sub-ctx context sub-quota)
         socket?               (fx/sub-ctx context sub-socket)]
     (if socket?
       {:fx/type     :v-box
        :style-class "quota-container"
        :padding     10
+       :spacing     10
        :children    [{:fx/type :label
+                      :text     (str "Hello, " name)}
+                     {:fx/type :label
                       :text    (str "You have spent " spent " out of " total " tokens.")}]}
       {:fx/type util/empty-view})))
 
 ;;; Chat
 
 (defmethod event-handler ::socket-response [{:keys [fx/context message]}]
-  (println message)
-  {:context (fx/swap-context context update ::history conj (:message/body message))})
+  (def m2 message)
+  {:context (fx/swap-context context update ::history conj message)})
 
 (defmethod event-handler ::connect-socket [{:keys [fx/context dispatch! port]}]
   (tap> "Connect socket")
   (letfn [(on-receive [message]
+            (def m1 message)
             (dispatch! {:event/type ::socket-response
                         :message    (edn/read-string message)}))]
     (let [socket (client/connect-socket port on-receive)]
       {:context (fx/swap-context context assoc ::socket socket)
        :ws      {:fx/context context :message/type :message/handshake :socket socket}})))
 
-(defn sub-name [context] (fx/sub-val context ::name))
 (defn sub-id   [context] (fx/sub-val context ::id))
 
 (defn ws-effect [{:keys [message/body message/type fx/context socket]} dispatch!]
@@ -96,9 +98,9 @@
                   :style-class "chat-message"
                   :children    [{:fx/type     :label
                                  :style-class "chat-message-author"
-                                 :text        "Dingo Star"}
+                                 :text        (-> message :message/headers :sender/name)}
                                 {:fx/type :label
-                                 :text    message}]}]})
+                                 :text    (:message/body message)}]}]})
 
 (defn sub-history [context] (fx/sub-val context ::history))
 
@@ -197,5 +199,5 @@
 
   (-> @*state :cljfx.context/m ::history)
 
-  (-main :port 8888)
+  (-main :port 8891)
   )
