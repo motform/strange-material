@@ -13,7 +13,7 @@
 
 (defmethod event-handler :default [event]
   (println "ERROR: Unknown event" (:event/type event))
-  (println event))
+  (println (pr-str event)))
 
 (def *state
   (atom
@@ -53,20 +53,18 @@
 ;;; Chat
 
 (defmethod event-handler ::socket-response [{:keys [fx/context message]}]
-  (def m2 message)
   {:context (fx/swap-context context update ::history conj message)})
 
 (defmethod event-handler ::connect-socket [{:keys [fx/context dispatch! port]}]
   (tap> "Connect socket")
   (letfn [(on-receive [message]
-            (def m1 message)
             (dispatch! {:event/type ::socket-response
                         :message    (edn/read-string message)}))]
     (let [socket (client/connect-socket port on-receive)]
       {:context (fx/swap-context context assoc ::socket socket)
        :ws      {:fx/context context :message/type :message/handshake :socket socket}})))
 
-(defn sub-id   [context] (fx/sub-val context ::id))
+(defn sub-id [context] (fx/sub-val context ::id))
 
 (defn ws-effect [{:keys [message/body message/type fx/context socket]} dispatch!]
   (tap> "ws-effect")

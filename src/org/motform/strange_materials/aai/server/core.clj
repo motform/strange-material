@@ -35,8 +35,6 @@
                                    :message/type :message/completion
                                    :server/name  :completion
                                    :sender/name  sender}}]
-    (println "clean-response: (pr-str (assoc message :message/body clean))")
-    (println "dirty-response: (pr-str (assoc message :message/body dirty))")
     (server/send!         channel (pr-str (assoc message :message/body clean)))
     (notify-other-clients channel (pr-str (assoc message :message/body dirty)))))
 
