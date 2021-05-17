@@ -12,9 +12,12 @@
 
 (defn connect-socket [port on-receive]
   (websocket/connect (str "ws://localhost:" port "/ws")
-    :on-receive on-receive
-    :on-connect (fn [session] (tap> (str "CLIENT: Connected as: " session)))
-    :on-close   (fn [status reason] (tap> (str "CLIENT: Disconnected with status: " status " due to " reason)))))
+                     :on-receive on-receive
+                     :on-connect (fn [session] (tap> (str "CLIENT: Connected as: " session)))
+                     :on-close   (fn [status reason] (tap> (str "CLIENT: Disconnected with status: " status " due to " reason)))))
+
+(defn- on-receive-cli [message]
+  (tap> (str "CLIENT: on-receive: " message)))
 
 (defn -main
   "Command line interface."

@@ -30,13 +30,13 @@
         edn/read-string
         (dispatch channel))))
 
-(defn send-response [channel {:keys [clean dirty sender]}]
-  (let [message {:message/headers {:message/id   (java.util.UUID/randomUUID)
-                                   :message/type :message/completion
-                                   :server/name  :completion
-                                   :sender/name  sender}}]
-    (server/send!         channel (pr-str (assoc message :message/body clean)))
-    (notify-other-clients channel (pr-str (assoc message :message/body dirty)))))
+(defn send-response [channel {:keys [completion/response client/name]}]
+  (let [message #:message{:headers {:message/id   (java.util.UUID/randomUUID)
+                                    :message/type :message/completion
+                                    :server/name  :server/completion
+                                    :sender/name  name}
+                          :body response}]
+    (notify-clients (pr-str message))))
 
 (defn handler [dispatch]
   (ring/ring-handler
@@ -58,3 +58,4 @@
 (comment
   (notify-clients "Everybody get on the floor.")
   )
+

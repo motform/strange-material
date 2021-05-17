@@ -40,8 +40,7 @@
                    :-fx-font-size        25
                    :-fx-background-radius 0}
 
-    ".pane" {:-fx-font-size 18
-             }
+    ".pane" {:-fx-font-size 18}
 
     ".quota" {"-container" {:-fx-padding 20}}
 
@@ -65,62 +64,81 @@
                           :-fx-border-color (colors :border)
                           :-fx-background-color (colors :selection)
 
-                          "-channel"
-                          {:-fx-padding       5
-                           :-fx-font-size     12
-                           :-fx-text-fill     (colors :border)
-                           :-fx-font-family   "Inconsolata"}
+                          "-channel" {:-fx-padding       5
+                                      :-fx-font-size     12
+                                      :-fx-text-fill     (colors :border)
+                                      :-fx-font-family   "Inconsolata"}
 
-                          "-connect"
-                          {:-fx-padding       5
-                           :-fx-font-size     12
-                           :-fx-text-fill     (colors :border)
-                           :-fx-font-family   "Inconsolata"
-                           ":hover" {:-fx-background-color (colors :border)
-                                     :-fx-text-fill (colors :foreground)}}}
+                          "-connect" {:-fx-padding       5
+                                      :-fx-font-size     12
+                                      :-fx-text-fill     (colors :border)
+                                      :-fx-font-family   "Inconsolata"
+                                      ":hover" {:-fx-background-color (colors :border)
+                                                :-fx-text-fill        (colors :foreground)}}}
 
-               "-chat" {"-view"
-                        {:-fx-spacing 10
-                         :-fx-padding 10
+               "-chat" {"-view" {:-fx-spacing 10
+                                 :-fx-padding 10
 
-                         "-name"
-                         {:-fx-font-size   12
-                          :-fx-font-family "Inconsolata"
-                          :-fx-text-fill   (colors :meta)}
+                                 "-name" {:-fx-font-size   12
+                                          :-fx-font-family "Inconsolata"
+                                          :-fx-text-fill   (colors :meta)}
 
-                         "-message"
-                         {:-fx-padding [5 10]
-                          :-fx-border-width  1
-                          :-fx-border-radius 5
-                          :-fx-font-size     15
-                          :-fx-font-family   "Inconsolata"
-                          :-fx-background-color (colors :selection)
-                          :-fx-border-color     (colors :border)}}
+                                 "-message" {:-fx-padding          [5 10]
+                                             :-fx-border-width     1
+                                             :-fx-border-radius    5
+                                             :-fx-font-size        15
+                                             :-fx-font-family      "Inconsolata"
+                                             :-fx-background-color (colors :selection)
+                                             :-fx-border-color     (colors :border)}}
 
-                        "-panel"
-                        {:-fx-spacing 20}}
+                        "-panel" {:-fx-spacing 20}}
 
-               "-interception" {"-container"
-                                {:-fx-spacing 10
-                                 :-fx-border-width  [0 1]
-                                 :-fx-border-color  (colors :border)}
+               "-interception" {"-container" {:-fx-spacing      [10 20]
+                                              :-fx-border-width [0 0 0 1]
+                                              :-fx-border-color (colors :border)}
 
-                                "-editor"
-                                {:-fx-spacing 10
+                                "-section" {:-fx-padding [0 0 20 0]
+                                            :-fx-spacing 10}
 
-                                 "-input"
-                                 {".text-field" {:-fx-border-width      1
-                                                 :-fx-border-color      (colors :border)
-                                                 :-fx-background-color  (colors :border)}}
+                                "-editor" {:-fx-spacing 10
+                                           :-fx-padding 10
 
-                                 "-label"
-                                 {:-fx-padding     [5 0 2 0]
-                                  :-fx-font-size   15
-                                  :-fx-font-family "Inconsolata"
-                                  :-fx-text-fill   (colors :meta)}
+                                           "-completion" {:-fx-padding       10
+                                                          :-fx-border-width  1
+                                                          :-fx-border-radius 5
+                                                          :-fx-border-color  (colors :border)
+                                                          :-fx-font-size     18
+                                                          :-fx-font-family   "Inconsolata"}
 
-                                 "-section"
-                                 {:-fx-padding       10
-                                  :-fx-border-width  [1 0 0 0]
-                                  :-fx-border-color  (colors :border)}}}}}
-   ))
+                                           "-prompt" {"-static" {:-fx-font-family   "Inconsolata"
+                                                                 :-fx-padding       10
+                                                                 :-fx-border-width  1
+                                                                 :-fx-border-radius 5
+                                                                 :-fx-border-color  (colors :border)}
+
+                                                      "-editable" {:-fx-font-family "Inconsolata"
+
+                                                                   "-container" {:-fx-border-width     1
+                                                                                 :-fx-padding          10
+                                                                                 :-fx-border-radius    5
+                                                                                 :-fx-border-color     (colors :border)
+                                                                                 :-fx-background-color (colors :selection)}}}
+
+                                           "-label" {:-fx-padding     [5 0 2 0]
+                                                     :-fx-font-size   15
+                                                     :-fx-font-family "Inconsolata"
+                                                     :-fx-text-fill   (colors :meta)}
+
+                                           "-submit" {:-fx-padding          10
+                                                      :-fx-border-width     1
+                                                      :-fx-border-radius    5
+                                                      :-fx-font-size   15
+                                                      :-fx-background-color (colors :selection)
+                                                      :-fx-font-family      "Inconsolata"
+                                                      :-fx-border-color     (colors :border)
+
+                                                      ":hover"
+                                                      {:-fx-background-radius 5
+                                                       :-fx-background-color (colors :sidebar)}}}}}}))
+
+

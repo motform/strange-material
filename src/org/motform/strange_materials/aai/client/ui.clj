@@ -197,5 +197,5 @@
 
   (-> @*state :cljfx.context/m ::history)
 
-  (-main :port 8891)
+  (-main :port 8894)
   )
