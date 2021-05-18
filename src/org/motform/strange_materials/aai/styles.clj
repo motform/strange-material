@@ -19,7 +19,8 @@
 (def styles
   (css/register
    ::style
-   {".root" {:-fx-background-color (colors :background)}
+   {".root" {:-fx-background-color (colors :background)
+             :-fx-font-family      "Inconsolata"}
 
     ".scroll-bar:vertical"   {:-fx-pref-width  10}
     ".scroll-bar:horizontal" {:-fx-pref-height 10}
@@ -36,27 +37,46 @@
     ".text-field" {:-fx-background-color  (colors :background)
                    :-fx-text-fill         (colors :foreground)
                    :-fx-padding           [15 15 15 15]
-                   :-fx-font-family      "Inconsolata"
-                   :-fx-font-size        25
+                   :-fx-font-family       "Inconsolata"
+                   :-fx-font-size         25
                    :-fx-background-radius 0}
 
     ".pane" {:-fx-font-size 18}
 
-    ".quota" {"-container" {:-fx-padding 20}}
+    ".chat" {"-input" {"-label" {:-fx-padding   [0 0 10 0]
+                                 :-fx-font-size 13
+                                 :-fx-text-fill (colors :meta)}
 
-    ".chat" {"-container" {:-fx-padding 0}
-
-             "-message" {:-fx-padding 5 
-                         :-fx-border-radius 5
-                         ":last-visible" {:-fx-padding 50}
-                         "-container"    {:-fx-padding [10 20]}
-                         "-author"       {:-fx-text-fill (colors :border)
-                                          :-fx-padding   [0 0 10 0]}}
-
-             "-input" {"-container" {:-fx-padding          [15 10 15 20]
-                                     :-fx-border-width     [1 0]
+                       "-container" {:-fx-padding          [15 10 15 20]
+                                     :-fx-border-width     [0 0 1 0]
                                      :-fx-border-color     (colors :border)
-                                     :-fx-background-color (colors :selection)}}}
+                                     :-fx-background-color (colors :selection)}}
+
+             "-smart-reply" {:-fx-padding           [5 10] 
+                             :-fx-border-width      1
+                             :-fx-border-radius     5
+                             :-fx-font-size         15
+                             :-fx-background-color  (colors :selection)
+                             :-fx-background-radius 5
+                             :-fx-border-color      (colors :border)
+                             ":hover" {:-fx-background-color  (colors :sidebar)
+                                       :-fx-background-radius 5}
+
+                             "-loading" {:-fx-padding [6 11]}
+
+                             "-container" {:-fx-padding 20
+                                           :-fx-spacing 20
+                                           :-fx-border-width     [1 0 0 0]
+                                           :-fx-border-color     (colors :border)}}
+
+             "-messages" {:-fx-padding [10 25]
+                          "-message" {:-fx-padding          [5 10] 
+                                      :-fx-border-width     1
+                                      :-fx-border-radius    5
+                                      :-fx-font-size        15
+                                      :-fx-background-color (colors :selection)
+                                      :-fx-border-color     (colors :border)
+                                      "-container" {:-fx-padding [5 0]}}}}
 
     ".server" {"-status" {:-fx-padding      10
                           :-fx-spacing      10
@@ -66,7 +86,7 @@
 
                           "-channel" {:-fx-padding       5
                                       :-fx-font-size     12
-                                      :-fx-text-fill     (colors :border)
+                                      :-fx-text-fill     (colors :meta)
                                       :-fx-font-family   "Inconsolata"}
 
                           "-connect" {:-fx-padding       5
@@ -79,9 +99,10 @@
                "-chat" {"-view" {:-fx-spacing 10
                                  :-fx-padding 10
 
-                                 "-name" {:-fx-font-size   12
-                                          :-fx-font-family "Inconsolata"
-                                          :-fx-text-fill   (colors :meta)}
+                                 "-sender" {:-fx-font-size   14
+                                            :-fx-padding     5
+                                            :-fx-font-family "Inconsolata"
+                                            :-fx-text-fill   (colors :meta)}
 
                                  "-message" {:-fx-padding          [5 10]
                                              :-fx-border-width     1
@@ -89,7 +110,8 @@
                                              :-fx-font-size        15
                                              :-fx-font-family      "Inconsolata"
                                              :-fx-background-color (colors :selection)
-                                             :-fx-border-color     (colors :border)}}
+                                             :-fx-border-color     (colors :border)
+                                             "-container" {:-fx-padding [5 0]}}}
 
                         "-panel" {:-fx-spacing 20}}
 

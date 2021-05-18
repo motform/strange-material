@@ -16,142 +16,82 @@
   (println "ERROR: Unknown event" (:event/type event))
   (println event))
 
+(def empty-smart-reply {:client/id nil :smart-reply/drafts ["" "" ""]})
+
 (def *state
   (atom
    (fx/create-context
-    {::server? false
-     ::clients #_{} {1 #:client{:channel nil :id 1 :name "test" :messages ["hi"]}}
-     ::prompt  #_nil {:client/id 1 :client/prompt "Test prompt." :server/prompt "Test prompt." :completion/response nil}
-     } ; if not nil {:client/id :client/prompt :server/prompt :completion/response} - should spec this
+    {::server?  false
+     ::messages []         #_[{:client/name "Alice" :completion/response "Hello Bob!"}]
+     ::clients  {}         #_{1 #:client{:channel nil :id 1 :name "Alice" :messages ["hi"]}}
+     ::smart-reply-request empty-smart-reply}
     cache/lru-cache-factory)))
 
-;;;; VIEWS
+;;;; SUBS
+
+(defn sub-clients  [context] (fx/sub-val context ::clients))
+(defn sub-messages [context] (fx/sub-val context ::messages))
+(defn sub-server?  [context] (fx/sub-val context ::server?))
+(defn sub-smart-reply-request [context] (fx/sub-val context ::smart-reply-request))
+
+;;;; EFFECTS
 
 (defn completion-effect [{:keys [client/prompt]} dispatch!]
-  (println "completion-effect" prompt)
-  (def p prompt)
   (dispatch! {:event/type ::completion-response
-              :response   (-> (open-ai/completion-with :davinci-instruct-beta
+              :response   (-> (open-ai/completion-with :davinci-instruct-beta ; are we using the wrong model?
                                 {:prompt prompt :max_tokens 64})
                               util/realize
                               open-ai/response-text
                               str/triml)}))
 
+(defn server-notify-all [{:keys [message]} _]
+  (server/notify-clients message))
+
+(defn server-send-smart-replies-effect [{:keys [channel smart-replies]} _]
+  (server/send-message channel #:message{:headers {:message/id   (java.util.UUID/randomUUID)
+                                                   :message/type :message/smart-replies}
+                                         :body smart-replies}))
+
+(defn server-connect-effect [port]
+  (fn [_ dispatch!]
+    (tap> "server-connect-effect")
+    (dispatch! {:event/type ::connect-server
+                :port       port
+                :dispatch!  dispatch!})))
+
+;;;; EVENTS
+
 (defmethod event-handler ::completion-response [{:keys [fx/context response]}]
-  (println "completion response")
-  (def ctx context)
-  (def r response)
   {:context #_(fx/swap-context context assoc ::completion response)
    (fx/swap-context context assoc-in [::prompt :completion/response] response)})
 
-(defmethod event-handler ::completion-request [{:keys [client/prompt]}]
+(defmethod event-handler ::completion-request [{:keys [server/prompt]}]
   {:completion/request {:prompt prompt}})
 
-(defn server-send-effect [{:keys [channel completion/response client/name]} _]
-  (server/send-response channel {:completion/response response :client/name name}))
-
 (defmethod event-handler ::server-request [{:keys [fx/context channel message]}]
-  (let [{:message/keys [headers body]} message]
-    (case (:message/type headers)
-      :message/prompt
-      {:completion/request {:client/prompt body}
-       :context (fx/swap-context context assoc ::prompt {:client/id     (:client/id headers)
-                                                         :client/prompt body
-                                                         :server/prompt body})}
-      :message/handshake
-      {:context (fx/swap-context context assoc-in [::clients (:client/id headers)] #:client{:channel  channel
-                                                                                            :id       (:client/id   headers)
-                                                                                            :name     (:client/name headers)
-                                                                                            :messages []})})))
+  (case (-> message :message/headers :message/type)
+    :message/reply
+    {:server/notify-all {:message message}
+     :context (-> context
+                  (fx/swap-context assoc-in [::smart-reply-request :client/id] (-> message :message/headers :client/id))
+                  (fx/swap-context update ::messages conj message))}
 
-;;; Interception
+    :message/handshake
+    {:context (fx/swap-context context assoc-in [::clients (-> message :message/headers :client/id)]
+                               #:client{:channel  channel
+                                        :id       (-> message :message/headers :client/id)
+                                        :name     (-> message :message/headers :client/name)
+                                        :messages []})}))
 
-(defn sub-prompt  [context] (fx/sub-val context ::prompt))
-(defn sub-clients [context] (fx/sub-val context ::clients))
+(defmethod event-handler ::send-smart-replies [{:keys [fx/context client/id]}]
+  (let [{:keys [smart-reply/drafts]} (fx/sub-ctx context sub-smart-reply-request)
+        channel (get-in (fx/sub-ctx context sub-clients) [id :client/channel])]
+    {:server/send-smart-replies {:smart-replies drafts
+                                 :channel       channel}
+     :context (fx/swap-context context assoc ::smart-reply-request empty-smart-reply)}))
 
-(defmethod event-handler ::send-completions [{:keys [fx/context]}]
-  (let [{:client/keys [prompt id]} (fx/sub-ctx context sub-prompt)
-        clients                    (fx/sub-ctx context sub-clients)]
-    {:server/send {:client/prompt prompt ; TODO send the completion, not the prompt
-                   :client/name  (get-in clients [id :client/name])
-                   :channel      (get-in clients [id :client/channel])}
-     :context     (-> context
-                      (fx/swap-context assoc ::prompt nil)
-                      (fx/swap-context update-in [::clients id :client/messages] conj prompt))}))
-
-(defmethod event-handler ::edit-prompt [{:keys [fx/context fx/event]}]
-  {:context (fx/swap-context context assoc-in [::prompt :server/prompt] event)})
-
-;; TODO why does it not assoc the completion in to the state?
-(defn prompt-editor [{:keys [fx/context sender]}]
-  (let [prompt (fx/sub-ctx context sub-prompt)]
-    {:fx/type     :v-box
-     :style-class "server-interception-editor"
-     :children    [{:fx/type :v-box
-                    :min-width 400
-                    :style-class "server-interception-section"
-                    :children [{:fx/type :label :text (str/upper-case (str "prompt from " sender)) :style-class "server-interception-editor-label"}
-                               {:fx/type     :label
-                                :style-class "server-interception-editor-prompt-static"
-                                :text        (:client/prompt prompt)}]}
-
-                   {:fx/type     :v-box
-                    :style-class "server-interception-section"
-                    :children    [{:fx/type :label :text "EDIT PROMPT" :style-class "server-interception-editor-label"}
-                                  {:fx/type     :v-box
-                                   :style-class "server-interception-editor-prompt-editable-container"
-                                   :children    [{:fx/type         :text-field
-                                                  :style-class     "server-interception-editor-prompt-editable"
-                                                  :text            (:server/prompt prompt)
-                                                  :on-text-changed {:event/type ::edit-prompt}}]}]}
-
-                   {:fx/type     :v-box
-                    :style-class "server-interception-section"
-                    :min-width 400
-                    :children    [{:fx/type :label :text "COMPLETION" :style-class "server-interception-editor-label"}
-                                  {:fx/type     :label
-                                   :style-class "server-interception-editor-completion"
-                                   :text        (or (:completion/response prompt) "Waiting for completion.")}]}
-
-                   {:fx/type          :label
-                    :text             "SEND MESSAGE"
-                    :style-class      "server-interception-editor-submit"
-                    :on-mouse-clicked {:event/type ::send-completions}}]}))
-
-(defn sub-sender [context]
-  (get-in (fx/sub-val context ::clients) [(fx/sub-val context get-in [::prompt :client/id]) :client/name]))
-
-(defn interception-view [{:keys [fx/context]}]
-  (let [sender (fx/sub-ctx context sub-sender)]
-    {:fx/type     :v-box
-     :min-width   400
-     :style-class "server-interception-container"
-     :children    [(if sender
-                     {:fx/type prompt-editor
-                      :sender  sender}
-                     {:fx/type :label
-                      :padding 10
-                      :text    "Waiting for prompt."})]}))
-
-;;; Chat
-
-(defn chat-view [{:keys [fx/context]}]
-  (let [clients (fx/sub-ctx context sub-clients)
-        {:client/keys [messages]} (-> clients vals first)]
-    {:fx/type     :v-box
-     :min-width   200
-     :style-class "server-chat-view"
-     :children    (concat [{:fx/type     :label
-                            :style-class "server-chat-view-name"
-                            :text        (str/upper-case (or (when name "conversation") "awaiting client"))}]
-                          (if-not (empty? messages)
-                            (for [message messages]
-                              {:fx/type     :label
-                               :style-class "server-chat-view-message"
-                               :text        message})
-                            [{:fx/type util/empty-view}]))}))
-
-;;; Server
+(defmethod event-handler ::edit-smart-reply [{:keys [fx/context fx/event index]}]
+  {:context (fx/swap-context context assoc-in [::smart-reply-request :smart-reply/drafts index] event)})
 
 (defmethod event-handler ::connect-server [{:keys [port dispatch!]}]
   (tap> "Connect to server")
@@ -161,20 +101,75 @@
                                         :channel    channel
                                         :message    message}))))
 
-(defn server-connect-effect [port]
-  (fn [_ dispatch!]
-    (tap> "server-connect-effect")
-    (dispatch! {:event/type ::connect-server
-                :port       port
-                :dispatch!  dispatch!})))
-
 (defmethod event-handler ::start-server-connection [{:keys [fx/context]}]
   (tap> "SERVER getting request")
   {:context        (fx/swap-context context assoc ::server? true)
    :server/connect {}})
 
-(defn sub-server? [context]
-  (fx/sub-val context ::server?))
+
+;;;; VIEWS
+
+
+(defn smart-reply-field [{:keys [drafts index]}]
+  {:fx/type     :v-box
+   :style-class "server-interception-editor-prompt-editable-container"
+   :children    [{:fx/type         :text-field
+                  :style-class     "server-interception-editor-prompt-editable"
+                  :text            (drafts index)
+                  :on-text-changed {:event/type ::edit-smart-reply
+                                    :index      index}}]})
+
+(defn prompt-editor [{:keys [fx/context]}]
+  (let [{:keys [client/id smart-reply/drafts]} (fx/sub-ctx context sub-smart-reply-request)
+        client-name (get-in (fx/sub-ctx context sub-clients) [id :client/name])]
+    {:fx/type     :v-box
+     :min-width   400
+     :style-class "server-interception-editor"
+     :children    [{:fx/type :v-box
+                    :style-class "server-interception-section"
+                    :children [{:fx/type     :label
+                                :style-class "server-interception-editor-label"
+                                :text        (str/upper-case (str "Smart replies for " client-name))}
+                               {:fx/type smart-reply-field :index 0 :drafts drafts}
+                               {:fx/type smart-reply-field :index 1 :drafts drafts}
+                               {:fx/type smart-reply-field :index 2 :drafts drafts}]}
+                   {:fx/type          :label
+                    :text             (str/upper-case "Send smart replies")
+                    :style-class      "server-interception-editor-submit"
+                    :on-mouse-clicked {:event/type ::send-smart-replies
+                                       :client/id  id}}]}))
+
+(defn interception-view [{:keys [fx/context]}]
+  (let [{:keys [client/id]} (fx/sub-ctx context sub-smart-reply-request)]
+    {:fx/type     :v-box
+     :min-width   400
+     :style-class "server-interception-container"
+     :children    [(if id
+                     {:fx/type   prompt-editor}
+                     {:fx/type :label
+                      :padding 10
+                      :text    "Waiting for client to request smart reply..."})]}))
+
+;;; Chat
+
+(defn chat-view [{:keys [fx/context]}]
+  (let [messages (fx/sub-ctx context sub-messages)]
+    {:fx/type     :v-box
+     :min-width   300
+     :style-class "server-chat-view"
+     :children    (if-not (empty? messages)
+                    (for [{:message/keys [headers body]} messages]
+                      {:fx/type     :v-box
+                       :style-class "server-chat-view-message-container"
+                       :children    [{:fx/type     :label
+                                      :style-class "server-chat-view-sender"
+                                      :text        (or (:client/name headers) "Placeholder name")}
+                                     {:fx/type     :label
+                                      :style-class "server-chat-view-message"
+                                      :text        (util/break-lines body 30)}]})
+                    [{:fx/type util/empty-view}])}))
+
+;;; Server
 
 (defn server-connection-status [{:keys [fx/context]}]
   (let [server? (fx/sub-ctx context sub-server?)]
@@ -216,11 +211,12 @@
                                         (fx/wrap-co-effects
                                          {:fx/context (fx/make-deref-co-effect *state)})
                                         (fx/wrap-effects
-                                         {:context            (fx/make-reset-effect *state)
-                                          :dispatch           fx/dispatch-effect
-                                          :completion/request completion-effect
-                                          :server/send        server-send-effect
-                                          :server/connect     (server-connect-effect port)}))
+                                         {:context                   (fx/make-reset-effect *state)
+                                          :dispatch                  fx/dispatch-effect
+                                          :completion/request        completion-effect
+                                          :server/send-smart-replies server-send-smart-replies-effect
+                                          :server/notify-all         server-notify-all
+                                          :server/connect            (server-connect-effect port)}))
           :fx.opt/type->lifecycle #(or (fx/keyword->lifecycle %)
                                        (fx/fn->lifecycle-with-context %))}))
 
@@ -229,9 +225,7 @@
 
 (comment
   (swap! org.motform.strange-materials.aai.server.ui/*state identity)
-  (-> @*state :cljfx.context/m ::client)
-  
+  (-> @*state :cljfx.context/m ::smart-reply-request )
 
-  (-main :port 8895)
+  (-main :port 8883)
   )
-

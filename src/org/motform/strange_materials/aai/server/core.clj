@@ -15,28 +15,22 @@
   (tap> (str "SERVER channel closed: " status))
   (swap! channels #(remove #{channel} %)))
 
-(defn- notify-clients [message]
+(defn notify-clients [message]
   (doseq [channel @channels]
-    (server/send! channel message)))
+    (server/send! channel (pr-str message))))
 
-(defn- notify-other-clients [excluded-channel message]
+(defn notify-other-clients [excluded-channel message]
   (doseq [channel (remove #{excluded-channel} @channels)]
-    (server/send! channel message)))
+    (server/send! channel (pr-str message))))
 
 (defn on-receive [dispatch]
   (fn [channel message]
-    (tap> (str "SERVER on-receive: " message " from " channel))
     (-> message
         edn/read-string
         (dispatch channel))))
 
-(defn send-response [channel {:keys [completion/response client/name]}]
-  (let [message #:message{:headers {:message/id   (java.util.UUID/randomUUID)
-                                    :message/type :message/completion
-                                    :server/name  :server/completion
-                                    :sender/name  name}
-                          :body response}]
-    (notify-clients (pr-str message))))
+(defn send-message [channel message]
+  (server/send! channel (pr-str message)))
 
 (defn handler [dispatch]
   (ring/ring-handler

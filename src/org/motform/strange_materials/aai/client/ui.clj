@@ -3,6 +3,7 @@
             [cljfx.css          :as css]
             [clojure.core.cache :as cache]
             [clojure.edn        :as edn]
+            [clojure.string     :as str]
             [org.motform.strange-materials.util            :as util]
             [org.motform.strange-materials.aai.styles      :as styles]
             [org.motform.strange-materials.aai.client.core :as client])
@@ -18,56 +19,24 @@
 (def *state
   (atom
    (fx/create-context
-    {::socket  false
-     ::id      (java.util.UUID/randomUUID)
-     ::name    ""
-     ::history []
-     ::input   ""
-     ::quota   {:total 100
-                :spent 20}}
+    {::client #:client{:id    (java.util.UUID/randomUUID)
+                       ::name ""}
+     ::server #:server{:socket false}
+     ::chat   #:chat{:smart-replies ["Hi" "Hello" "Hola"]
+                     :messages      []}}
     cache/lru-cache-factory)))
 
-;;;; VIEWS
+;;;; SUBS
 
-;;; Tokens
+(defn sub-socket        [context] (fx/sub-val context get-in [::server :server/socket]))
+(defn sub-name          [context] (fx/sub-val context get-in [::client :client/name]))
+(defn sub-id            [context] (fx/sub-val context get-in [::client :client/id]))
+(defn sub-messages      [context] (fx/sub-val context get-in [::chat   :chat/messages]))
+(defn sub-smart-replies [context] (fx/sub-val context get-in [::chat   :chat/smart-replies]))
 
-(defn sub-socket [context] (fx/sub-val context ::socket))
-(defn sub-quota  [context] (fx/sub-val context ::quota))
-(defn sub-name   [context] (fx/sub-val context ::name))
-
-(defn quota-meter [{:keys [fx/context]}]
-  (let [name                  (fx/sub-ctx context sub-name)
-        {:keys [total spent]} (fx/sub-ctx context sub-quota)
-        socket?               (fx/sub-ctx context sub-socket)]
-    (if socket?
-      {:fx/type     :v-box
-       :style-class "quota-container"
-       :padding     10
-       :spacing     10
-       :children    [{:fx/type :label
-                      :text     (str "Hello, " name)}
-                     {:fx/type :label
-                      :text    (str "You have spent " spent " out of " total " tokens.")}]}
-      {:fx/type util/empty-view})))
-
-;;; Chat
-
-(defmethod event-handler ::socket-response [{:keys [fx/context message]}]
-  {:context (fx/swap-context context update ::history conj message)})
-
-(defmethod event-handler ::connect-socket [{:keys [fx/context dispatch! port]}]
-  (tap> "Connect socket")
-  (letfn [(on-receive [message]
-            (dispatch! {:event/type ::socket-response
-                        :message    (edn/read-string message)}))]
-    (let [socket (client/connect-socket port on-receive)]
-      {:context (fx/swap-context context assoc ::socket socket)
-       :ws      {:fx/context context :message/type :message/handshake :socket socket}})))
-
-(defn sub-id [context] (fx/sub-val context ::id))
+;;;; EFFECTS
 
 (defn ws-effect [{:keys [message/body message/type fx/context socket]} dispatch!]
-  (tap> "ws-effect")
   (let [socket (or socket (fx/sub-ctx context sub-socket))
         name   (fx/sub-ctx context sub-name)
         id     (fx/sub-ctx context sub-id)]
@@ -76,71 +45,92 @@
                                                     :client/name  name
                                                     :client/id    id}
                                           :body body})
-    (dispatch! {:event/type ::update-input :fx/event ""})))
+    (dispatch! {:event/type ::update-name-input :fx/event ""})))
+
+(defn ws-connect-effect [port]
+  (fn [_ dispatch!]
+    (dispatch! {:event/type ::connect-socket
+                :port       port
+                :dispatch!  dispatch!})))
+
+;;;; EVENTS
+
+(defmethod event-handler ::socket-response [{:keys [fx/context message]}]
+  (case (-> message :message/headers :message/type)
+    :message/smart-replies
+    {:context (fx/swap-context context assoc-in [::chat :chat/smart-replies] (-> message :message/body))}
+    :message/reply
+    {:context (fx/swap-context context update-in [::chat :chat/messages] conj message)}))
+
+(defmethod event-handler ::connect-socket [{:keys [fx/context dispatch! port]}]
+  (letfn [(on-receive [message]
+            (dispatch! {:event/type ::socket-response
+                        :message    (edn/read-string message)}))]
+    (let [socket (client/connect-socket port on-receive)]
+      {:context (fx/swap-context context assoc-in [::server :server/socket] socket)
+       :ws      {:fx/context context :message/type :message/handshake :socket socket}})))
+
+(defmethod event-handler ::update-name-input [{:keys [fx/context fx/event]}]
+  {:context (fx/swap-context context assoc ::input event)})
+
+(defmethod event-handler ::submit-smart-reply [{:keys [fx/context smart-reply]}]
+  {:ws {:fx/context   context
+        :message/type :message/reply
+        :message/body smart-reply}
+   :context (fx/swap-context context assoc-in [::chat :chat/smart-replies] [])})
 
 (defmethod event-handler ::submit-name [{:keys [fx/context fx/event]}]
   (when (= KeyCode/ENTER (.getCode ^KeyEvent event))
     {:ws-connect {:fx/context context}}))
 
-(defn ws-connect-effect [port]
-  (fn [_ dispatch!]
-    (tap> "ws-connect-effect")
-    (dispatch! {:event/type ::connect-socket
-                :port       port
-                :dispatch!  dispatch!})))
+(defmethod event-handler ::update-name [{:keys [fx/context fx/event]}]
+  {:context (fx/swap-context context assoc-in [::client :client/name] event)})
+
+;;;; VIEWS
+
+;;; Chat
 
 (defn chat-message [{:keys [message]}]
-  {:fx/type     :v-box
-   :style-class "chat-message-container"
-   :children    [{:fx/type     :v-box
-                  :style-class "chat-message"
-                  :children    [{:fx/type     :label
-                                 :style-class "chat-message-author"
-                                 :text        (-> message :message/headers :sender/name)}
-                                {:fx/type :label
-                                 :text    (:message/body message)}]}]})
+  {:fx/type :v-box
+   :style-class "server-chat-view-message-container"
+   :children [{:fx/type     :label
+               :style-class "server-chat-view-sender"
+               :text        (-> message :message/headers :client/name)}
+              {:fx/type     :label
+               :style-class "server-chat-view-message"
+               :text        (-> message :message/body)}]})
 
-(defn sub-history [context] (fx/sub-val context ::history))
-
-(defn chat-history [{:keys [fx/context]}]
-  (let [history (fx/sub-ctx context sub-history)]
-    {:fx/type  :v-box
-     :children (for [message history]
-                 {:fx/type chat-message
-                  :message message})}))
-
-(defn sub-input [context] (fx/sub-val context ::input))
-
-(defmethod event-handler ::update-input [{:keys [fx/context fx/event]}]
-  {:context (fx/swap-context context assoc ::input event)})
-
-(defmethod event-handler ::submit-message [{:keys [fx/context fx/event]}]
-  (when (= KeyCode/ENTER (.getCode ^KeyEvent event))
-    {:ws {:fx/context context
-          :message/type :message/prompt
-          :message/body (fx/sub-ctx context sub-input)}}))
-
-(defn chat-input [{:keys [fx/context]}]
-  (let [input (fx/sub-ctx context sub-input)]
-    {:fx/type     :v-box
-     :style-class "chat-input-container"
-     :children    [{:fx/type     :text-field
-                    :style-class "chat-input-field"
-                    :text        input
-                    :on-key-pressed  {:event/type ::submit-message}
-                    :on-text-changed {:event/type ::update-input}}]}))
-
-(defn chat-container [{:keys [fx/context]}]
-  (let [socket? (fx/sub-ctx context sub-socket)]
+(defn chat-view [{:keys [fx/context]}]
+  (let [socket?  (fx/sub-ctx context sub-socket)
+        messages (fx/sub-ctx context sub-messages)]
     (if socket?
       {:fx/type     :v-box
-       :style-class "chat-container"
-       :children    [{:fx/type chat-history}
-                     {:fx/type chat-input}]}
+       :style-class "chat-messages"
+       :children    (if-not (empty? messages)
+                      (for [message messages]
+                        {:fx/type     chat-message
+                         :style-class "chat-messages-message"
+                         :message     message})
+                      [{:fx/type util/empty-view}])}
       {:fx/type util/empty-view})))
 
-(defmethod event-handler ::update-name [{:keys [fx/context fx/event]}]
-  {:context (fx/swap-context context assoc ::name event)})
+(defn smart-reply-view [{:keys [fx/context]}]
+  (let [smart-replies (fx/sub-ctx context sub-smart-replies)
+        socket?       (fx/sub-ctx context sub-socket)]
+    (if socket?
+      {:fx/type     :h-box
+       :style-class "chat-smart-reply-container"
+       :children    (if-not (empty? smart-replies)
+                      (for [smart-reply smart-replies]
+                        {:fx/type          :label
+                         :text             smart-reply
+                         :style-class      "chat-smart-reply"
+                         :on-mouse-clicked {:event/type ::submit-smart-reply
+                                            :smart-reply smart-reply}})
+                      [{:fx/type :label
+                        :style-class      "chat-smart-loading"
+                        :text "AI is loading new smart responses..."}])}
+      {:fx/type util/empty-view})))
 
 (defn name-input [{:keys [fx/context]}]
   (let [name    (fx/sub-ctx context sub-name)
@@ -149,14 +139,18 @@
       {:fx/type :v-box
        :style-class "chat-input-container"
        :children [{:fx/type     :label
-                   :style-class "chat-message-author"
-                   :text        "Enter your name"}
-                  {:fx/type :text-field
-                   :style-class "chat-input-field"
-                   :text    name
+                   :style-class "chat-input-label"
+                   :text        (str/upper-case "Enter your name")}
+                  {:fx/type         :text-field
+                   :style-class     "chat-input-field"
+                   :text            name
                    :on-key-pressed  {:event/type ::submit-name}
                    :on-text-changed {:event/type ::update-name}}]}
-      {:fx/type util/empty-view})))
+      {:fx/type :v-box
+       :style-class "server-status"
+       :children [{:fx/type     :label
+                   :style-class "server-status-channel"
+                   :text        "Chatting with Bob"}]})))
 
 ;;;; RENDERER
 
@@ -165,14 +159,14 @@
    :width   600
    :height  1200
    :showing true
-   :title   "The Chat of Tomorrow… Today!"
+   :title   "I can't Believe its not LinkedIn"
    :scene   {:fx/type :scene
              :stylesheets [(::css/url styles/styles)]
              :root        {:fx/type     :border-pane
                            :style-class "pane"
                            :top         {:fx/type name-input}
-                           :bottom      {:fx/type quota-meter}
-                           :center      {:fx/type chat-container}}}})
+                           :center      {:fx/type chat-view}
+                           :bottom      {:fx/type smart-reply-view}}}})
 
 (defn renderer [{:keys [port] :or {port 8080}}]
   (fx/create-renderer
@@ -195,7 +189,7 @@
 (comment
   (swap! org.motform.strange-materials.aai.client.ui/*state identity)
 
-  (-> @*state :cljfx.context/m ::history)
+  (-> @*state :cljfx.context/m ::chat :chat/messages last)
 
-  (-main :port 8894)
+  (-main :port 8883)
   )

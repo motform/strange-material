@@ -52,3 +52,12 @@
 
 (defn random-port []
   (+ 8000 (rand-int 1000)))
+
+(defn break-lines [s i]
+  (if (str/blank? s)
+    ""
+    (->> (str/escape s {\newline ""})
+         (partition-all i)
+         (interpose "\n")
+         (map (partial apply str))
+         (apply str))))
