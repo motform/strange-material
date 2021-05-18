@@ -104,14 +104,15 @@
   (let [socket?  (fx/sub-ctx context sub-socket)
         messages (fx/sub-ctx context sub-messages)]
     (if socket?
-      {:fx/type     :v-box
-       :style-class "chat-messages"
-       :children    (if-not (empty? messages)
-                      (for [message messages]
-                        {:fx/type     chat-message
-                         :style-class "chat-messages-message"
-                         :message     message})
-                      [{:fx/type util/empty-view}])}
+      {:fx/type :scroll-pane
+       :content {:fx/type     :v-box
+                 :style-class "chat-messages"
+                 :children    (if-not (empty? messages)
+                                (for [message messages]
+                                  {:fx/type     chat-message
+                                   :style-class "chat-messages-message"
+                                   :message     message})
+                                [{:fx/type util/empty-view}])}}
       {:fx/type util/empty-view})))
 
 (defn smart-reply-view [{:keys [fx/context]}]
@@ -191,5 +192,5 @@
 
   (-> @*state :cljfx.context/m ::chat :chat/messages last)
 
-  (-main :port 8886)
+  (-main :port 8887)
   )

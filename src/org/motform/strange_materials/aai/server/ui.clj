@@ -163,20 +163,21 @@
 
 (defn chat-view [{:keys [fx/context]}]
   (let [messages (fx/sub-ctx context sub-messages)]
-    {:fx/type     :v-box
-     :min-width   300
-     :style-class "server-chat-view"
-     :children    (if-not (empty? messages)
-                    (for [{:message/keys [headers body]} messages]
-                      {:fx/type     :v-box
-                       :style-class "server-chat-view-message-container"
-                       :children    [{:fx/type     :label
-                                      :style-class "server-chat-view-sender"
-                                      :text        (or (:client/name headers) "Placeholder name")}
-                                     {:fx/type     :label
-                                      :style-class "server-chat-view-message"
-                                      :text        (util/break-lines body 30)}]})
-                    [{:fx/type util/empty-view}])}))
+    {:fx/type :scroll-pane
+     :content {:fx/type     :v-box
+               :min-width   300
+               :style-class "server-chat-view"
+               :children    (if-not (empty? messages)
+                              (for [{:message/keys [headers body]} messages]
+                                {:fx/type     :v-box
+                                 :style-class "server-chat-view-message-container"
+                                 :children    [{:fx/type     :label
+                                                :style-class "server-chat-view-sender"
+                                                :text        (or (:client/name headers) "Placeholder name")}
+                                               {:fx/type     :label
+                                                :style-class "server-chat-view-message"
+                                                :text        (util/break-lines body 30)}]})
+                              [{:fx/type util/empty-view}])}}))
 
 ;;; Server
 
