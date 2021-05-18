@@ -4,9 +4,10 @@
 (defn send-message
   "The shape of the message map:
   #:message
-  {:type #:message[prompt|handshake]
-   :from #:client{id #uuid name str}
-   :body str}"
+  {:body str
+   :headers {:client/name  str
+             :client/id    uuid
+             :message/type enum}}"
   [socket message]
   (websocket/send-msg socket (pr-str message)))
 

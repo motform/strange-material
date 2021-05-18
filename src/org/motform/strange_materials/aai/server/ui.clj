@@ -16,15 +16,17 @@
   (println "ERROR: Unknown event" (:event/type event))
   (println event))
 
-(def empty-smart-reply {:client/id nil :smart-reply/drafts ["" "" ""]})
+(defn new-smart-reply [id]
+  {:client/id id
+   :smart-reply/drafts ["" "" ""]})
 
 (def *state
   (atom
    (fx/create-context
     {::server?  false
-     ::messages []         #_[{:client/name "Alice" :completion/response "Hello Bob!"}]
-     ::clients  {}         #_{1 #:client{:channel nil :id 1 :name "Alice" :messages ["hi"]}}
-     ::smart-reply-request empty-smart-reply}
+     ::messages []          #_[{:client/name "Alice" :completion/response "Hello Bob!"}]
+     ::clients  {}          #_{1 #:client{:channel nil :id 1 :name "Alice" :messages ["hi"]}}
+     ::smart-reply-requests {}}
     cache/lru-cache-factory)))
 
 ;;;; SUBS
@@ -32,7 +34,7 @@
 (defn sub-clients  [context] (fx/sub-val context ::clients))
 (defn sub-messages [context] (fx/sub-val context ::messages))
 (defn sub-server?  [context] (fx/sub-val context ::server?))
-(defn sub-smart-reply-request [context] (fx/sub-val context ::smart-reply-request))
+(defn sub-smart-reply-requests [context] (fx/sub-val context ::smart-reply-requests))
 
 ;;;; EFFECTS
 
@@ -62,8 +64,7 @@
 ;;;; EVENTS
 
 (defmethod event-handler ::completion-response [{:keys [fx/context response]}]
-  {:context #_(fx/swap-context context assoc ::completion response)
-   (fx/swap-context context assoc-in [::prompt :completion/response] response)})
+  {:context (fx/swap-context context assoc-in [::prompt :completion/response] response)})
 
 (defmethod event-handler ::completion-request [{:keys [server/prompt]}]
   {:completion/request {:prompt prompt}})
@@ -72,9 +73,10 @@
   (case (-> message :message/headers :message/type)
     :message/reply
     {:server/notify-all {:message message}
-     :context (-> context
-                  (fx/swap-context assoc-in [::smart-reply-request :client/id] (-> message :message/headers :client/id))
-                  (fx/swap-context update ::messages conj message))}
+     :context (let [client-id (-> message :message/headers :client/id)]
+                (-> context
+                    (fx/swap-context assoc-in [::smart-reply-requests client-id] (new-smart-reply client-id))
+                    (fx/swap-context update ::messages conj message)))}
 
     :message/handshake
     {:context (fx/swap-context context assoc-in [::clients (-> message :message/headers :client/id)]
@@ -83,15 +85,16 @@
                                         :name     (-> message :message/headers :client/name)
                                         :messages []})}))
 
-(defmethod event-handler ::send-smart-replies [{:keys [fx/context client/id]}]
-  (let [{:keys [smart-reply/drafts]} (fx/sub-ctx context sub-smart-reply-request)
-        channel (get-in (fx/sub-ctx context sub-clients) [id :client/channel])]
+(defmethod event-handler ::send-smart-replies [{:keys [fx/context client/id smart-reply/drafts]}]
+  (def s [id drafts])
+  (let [channel (get-in (fx/sub-ctx context sub-clients) [id :client/channel])]
     {:server/send-smart-replies {:smart-replies drafts
                                  :channel       channel}
-     :context (fx/swap-context context assoc ::smart-reply-request empty-smart-reply)}))
+     :context (fx/swap-context context update-in [::smart-reply-requests] dissoc id)}))
 
-(defmethod event-handler ::edit-smart-reply [{:keys [fx/context fx/event index]}]
-  {:context (fx/swap-context context assoc-in [::smart-reply-request :smart-reply/drafts index] event)})
+
+(defmethod event-handler ::edit-smart-reply [{:keys [fx/context fx/event client/id index]}]
+  {:context (fx/swap-context context assoc-in [::smart-reply-requests id :smart-reply/drafts index] event)})
 
 (defmethod event-handler ::connect-server [{:keys [port dispatch!]}]
   (tap> "Connect to server")
@@ -110,45 +113,51 @@
 ;;;; VIEWS
 
 
-(defn smart-reply-field [{:keys [drafts index]}]
+(defn smart-reply-field [{:keys [id drafts index]}]
   {:fx/type     :v-box
    :style-class "server-interception-editor-prompt-editable-container"
    :children    [{:fx/type         :text-field
                   :style-class     "server-interception-editor-prompt-editable"
                   :text            (drafts index)
                   :on-text-changed {:event/type ::edit-smart-reply
+                                    :client/id  id
                                     :index      index}}]})
 
 (defn prompt-editor [{:keys [fx/context]}]
-  (let [{:keys [client/id smart-reply/drafts]} (fx/sub-ctx context sub-smart-reply-request)
-        client-name (get-in (fx/sub-ctx context sub-clients) [id :client/name])]
+  (let [smart-replies (fx/sub-ctx context sub-smart-reply-requests)
+        clients       (fx/sub-ctx context sub-clients)]
     {:fx/type     :v-box
      :min-width   400
      :style-class "server-interception-editor"
-     :children    [{:fx/type :v-box
-                    :style-class "server-interception-section"
-                    :children [{:fx/type     :label
-                                :style-class "server-interception-editor-label"
-                                :text        (str/upper-case (str "Smart replies for " client-name))}
-                               {:fx/type smart-reply-field :index 0 :drafts drafts}
-                               {:fx/type smart-reply-field :index 1 :drafts drafts}
-                               {:fx/type smart-reply-field :index 2 :drafts drafts}]}
-                   {:fx/type          :label
-                    :text             (str/upper-case "Send smart replies")
-                    :style-class      "server-interception-editor-submit"
-                    :on-mouse-clicked {:event/type ::send-smart-replies
-                                       :client/id  id}}]}))
+     :children    (for [{:keys [client/id smart-reply/drafts]} (vals smart-replies)]
+                    (let [client-name (get-in clients [id :client/name])]
+                      (if id
+                        {:fx/type :v-box
+                         :style-class "server-interception-section"
+                         :children [{:fx/type     :label
+                                     :style-class "server-interception-editor-label"
+                                     :text        (str/upper-case (str "Smart replies for " client-name))}
+                                    {:fx/type smart-reply-field :index 0 :drafts drafts :id id}
+                                    {:fx/type smart-reply-field :index 1 :drafts drafts :id id}
+                                    {:fx/type smart-reply-field :index 2 :drafts drafts :id id}
+                                    {:fx/type          :label
+                                     :text             (str/upper-case "Send smart replies")
+                                     :style-class      "server-interception-editor-submit"
+                                     :on-mouse-clicked {:event/type         ::send-smart-replies
+                                                        :smart-reply/drafts drafts
+                                                        :client/id          id}}]}
+                        {:fx/type util/empty-view})))}))
 
 (defn interception-view [{:keys [fx/context]}]
-  (let [{:keys [client/id]} (fx/sub-ctx context sub-smart-reply-request)]
+  (let [smart-replies-in-queue? (seq (fx/sub-ctx context sub-smart-reply-requests))]
     {:fx/type     :v-box
      :min-width   400
      :style-class "server-interception-container"
-     :children    [(if id
-                     {:fx/type   prompt-editor}
-                     {:fx/type :label
+     :children    (if smart-replies-in-queue?
+                    [{:fx/type  prompt-editor}]
+                    [{:fx/type :label
                       :padding 10
-                      :text    "Waiting for client to request smart reply..."})]}))
+                      :text    "Waiting for client to request smart reply..."}])}))
 
 ;;; Chat
 
@@ -225,7 +234,7 @@
 
 (comment
   (swap! org.motform.strange-materials.aai.server.ui/*state identity)
-  (-> @*state :cljfx.context/m ::smart-reply-request )
+  (-> @*state :cljfx.context/m ::smart-reply-requests)
 
-  (-main :port 8883)
+  (-main :port 8887)
   )

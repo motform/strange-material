@@ -191,5 +191,5 @@
 
   (-> @*state :cljfx.context/m ::chat :chat/messages last)
 
-  (-main :port 8883)
+  (-main :port 8886)
   )
