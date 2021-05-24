@@ -1,4 +1,5 @@
 (ns org.motform.strange-materials.aai.server.core
+  "Websocket server functionality."
   (:require [clojure.edn        :as edn]
             [org.httpkit.server :as server]
             [reitit.ring        :as ring]))
@@ -42,7 +43,6 @@
                                :on-receive (on-receive dispatch)
                                :on-close   disconnect!}))]])
    (ring/create-default-handler)))
-
 
 (defn start [& {:keys [dispatch port]}]
   (server/run-server (handler dispatch)

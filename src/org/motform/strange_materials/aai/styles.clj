@@ -1,4 +1,5 @@
 (ns org.motform.strange-materials.aai.styles
+  "Shared styles between aai client and server."
   (:require [cljfx.css :as css]))
 
 (def ^:private colors
@@ -25,11 +26,11 @@
     ".scroll-bar:vertical"   {:-fx-pref-width  10}
     ".scroll-bar:horizontal" {:-fx-pref-height 10}
 
-    ".track" {:-fx-background-color (colors :frame)}
-    ".thumb" {:-fx-background-color (colors :scroll-bar) :-fx-background-radius 0}
+    ".track" {:-fx-background-color (colors :transparent)}
+    ".thumb" {:-fx-background-color (colors :sidebar) :-fx-background-radius 0}
 
-    ".increment-button" {:-fx-background-color (colors :frame) :-fx-padding 0   :-fx-border-color (colors :frame) }
-    ".decrement-button" {:-fx-background-color (colors :frame) :-fx-padding -50 :-fx-border-color (colors :frame)}
+    ".increment-button" {:-fx-background-color (colors :frame) :-fx-padding 0   :-fx-border-color (colors :transparent) }
+    ".decrement-button" {:-fx-background-color (colors :frame) :-fx-padding -50 :-fx-border-color (colors :transparent)}
     ".decrement-arrow"  {:-fx-padding 0 :-fx-border-width 0 :-fx-border-color (colors :frame) :-fx-shape " "}
     ".increment-arrow"  {:-fx-padding 0 :-fx-border-width 0 :-fx-border-color (colors :frame) :-fx-shape " "}
     ".scroll-arrow"     {:-fx-padding 0}

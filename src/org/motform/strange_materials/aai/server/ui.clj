@@ -1,4 +1,5 @@
 (ns org.motform.strange-materials.aai.server.ui
+  "UI views, event and subs, using re-frame like cljfx."
   (:require [cljfx.api :as fx]      
             [cljfx.css :as css]
             [clojure.core.cache :as cache]

@@ -1,4 +1,6 @@
 (ns org.motform.strange-materials.aai.client.ui
+  "UI views, event and subs, using re-frame like cljfx."
+  (:gen-class)
   (:require [cljfx.api          :as fx]      
             [cljfx.css          :as css]
             [clojure.core.cache :as cache]
@@ -20,9 +22,11 @@
   (atom
    (fx/create-context
     {::client #:client{:id    (java.util.UUID/randomUUID)
-                       ::name ""}
+                       ::name    ""
+                       :port     ""
+                       :hostname ""}
      ::server #:server{:socket false}
-     ::chat   #:chat{:smart-replies ["Hi" "Hello" "Hola"]
+     ::chat   #:chat{:smart-replies ["Hi" "Hello" "Hola"] ; populate with your own opening remarks!
                      :messages      []}}
     cache/lru-cache-factory)))
 
@@ -30,6 +34,8 @@
 
 (defn sub-socket        [context] (fx/sub-val context get-in [::server :server/socket]))
 (defn sub-name          [context] (fx/sub-val context get-in [::client :client/name]))
+(defn sub-port          [context] (fx/sub-val context get-in [::client :client/port]))
+(defn sub-host          [context] (fx/sub-val context get-in [::client :client/host]))
 (defn sub-id            [context] (fx/sub-val context get-in [::client :client/id]))
 (defn sub-messages      [context] (fx/sub-val context get-in [::chat   :chat/messages]))
 (defn sub-smart-replies [context] (fx/sub-val context get-in [::chat   :chat/smart-replies]))
@@ -47,10 +53,11 @@
                                           :body body})
     (dispatch! {:event/type ::update-name-input :fx/event ""})))
 
-(defn ws-connect-effect [port]
-  (fn [_ dispatch!]
+(defn ws-connect-effect []
+  (fn [{:keys [port host]} dispatch!]
     (dispatch! {:event/type ::connect-socket
                 :port       port
+                :host       host
                 :dispatch!  dispatch!})))
 
 ;;;; EVENTS
@@ -62,11 +69,11 @@
     :message/reply
     {:context (fx/swap-context context update-in [::chat :chat/messages] conj message)}))
 
-(defmethod event-handler ::connect-socket [{:keys [fx/context dispatch! port]}]
+(defmethod event-handler ::connect-socket [{:keys [fx/context dispatch! port host]}]
   (letfn [(on-receive [message]
             (dispatch! {:event/type ::socket-response
                         :message    (edn/read-string message)}))]
-    (let [socket (client/connect-socket port on-receive)]
+    (let [socket (client/connect-socket port host on-receive)]
       {:context (fx/swap-context context assoc-in [::server :server/socket] socket)
        :ws      {:fx/context context :message/type :message/handshake :socket socket}})))
 
@@ -80,11 +87,21 @@
    :context (fx/swap-context context assoc-in [::chat :chat/smart-replies] [])})
 
 (defmethod event-handler ::submit-name [{:keys [fx/context fx/event]}]
-  (when (= KeyCode/ENTER (.getCode ^KeyEvent event))
-    {:ws-connect {:fx/context context}}))
+  (let [port (fx/sub-ctx context sub-port)
+        host (fx/sub-ctx context sub-host)]
+    (when (= KeyCode/ENTER (.getCode ^KeyEvent event))
+      {:ws-connect {:fx/context context
+                    :port port
+                    :host host}})))
 
 (defmethod event-handler ::update-name [{:keys [fx/context fx/event]}]
   {:context (fx/swap-context context assoc-in [::client :client/name] event)})
+
+(defmethod event-handler ::update-port [{:keys [fx/context fx/event]}]
+  {:context (fx/swap-context context assoc-in [::client :client/port] event)})
+
+(defmethod event-handler ::update-host [{:keys [fx/context fx/event]}]
+  {:context (fx/swap-context context assoc-in [::client :client/host] event)})
 
 ;;;; VIEWS
 
@@ -135,23 +152,44 @@
 
 (defn name-input [{:keys [fx/context]}]
   (let [name    (fx/sub-ctx context sub-name)
+        port    (fx/sub-ctx context sub-port)
+        host    (fx/sub-ctx context sub-host)
         socket? (fx/sub-ctx context sub-socket)]
     (if-not socket?
       {:fx/type :v-box
        :style-class "chat-input-container"
-       :children [{:fx/type     :label
+       :children [
+                  {:fx/type     :label
                    :style-class "chat-input-label"
                    :text        (str/upper-case "Enter your name")}
                   {:fx/type         :text-field
                    :style-class     "chat-input-field"
                    :text            name
                    :on-key-pressed  {:event/type ::submit-name}
-                   :on-text-changed {:event/type ::update-name}}]}
+                   :on-text-changed {:event/type ::update-name}}
+
+                  {:fx/type     :label
+                   :style-class "chat-input-label"
+                   :text        (str/upper-case "Enter your port")}
+                  {:fx/type         :text-field
+                   :style-class     "chat-input-field"
+                   :text            port
+                   :on-key-pressed  {:event/type ::submit-name}
+                   :on-text-changed {:event/type ::update-port}}
+
+                  {:fx/type     :label
+                   :style-class "chat-input-label"
+                   :text        (str/upper-case "Enter your host")}
+                  {:fx/type         :text-field
+                   :style-class     "chat-input-field"
+                   :text            host
+                   :on-key-pressed  {:event/type ::submit-name}
+                   :on-text-changed {:event/type ::update-host}}]}
       {:fx/type :v-box
        :style-class "server-status"
        :children [{:fx/type     :label
                    :style-class "server-status-channel"
-                   :text        "Chatting with Bob"}]})))
+                   :text        "Chatting with someone."}]})))
 
 ;;;; RENDERER
 
@@ -169,7 +207,7 @@
                            :center      {:fx/type chat-view}
                            :bottom      {:fx/type smart-reply-view}}}})
 
-(defn renderer [{:keys [port] :or {port 8080}}]
+(def renderer 
   (fx/create-renderer
    :middleware (comp fx/wrap-context-desc
                      (fx/wrap-map-desc #'root))
@@ -180,17 +218,16 @@
                                          {:context    (fx/make-reset-effect *state)
                                           :dispatch   fx/dispatch-effect
                                           :ws         ws-effect
-                                          :ws-connect (ws-connect-effect port)}))
+                                          :ws-connect ws-connect-effect}))
           :fx.opt/type->lifecycle #(or (fx/keyword->lifecycle %)
                                        (fx/fn->lifecycle-with-context %))}))
 
-(defn -main [& args]
-  (fx/mount-renderer *state (renderer args)))
+(defn -main [_]
+  (fx/mount-renderer *state renderer))
 
 (comment
+
+  (-main nil)
   (swap! org.motform.strange-materials.aai.client.ui/*state identity)
 
-  (-> @*state :cljfx.context/m ::chat :chat/messages last)
-
-  (-main :port 8887)
   )

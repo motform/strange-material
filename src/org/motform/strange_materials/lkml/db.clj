@@ -1,4 +1,6 @@
 (ns org.motform.strange-materials.lkml.db
+  "DB query functions and scripts that build a database from a public-inbox/LKML-git tree.
+  Use the forms in the rich comment at the bottom of the file to populate the database."
   (:require [clojure.string       :as str]
             [clojure.java.io      :as io]
             [clojure-mail.message :as email]
@@ -10,15 +12,19 @@
             [javax.mail Session]
             [javax.mail.internet MimeMessage]))
 
-;; PUBLIC-INBOX WRANGLING
+;;;; PUBLIC-INBOX WRANGLING
 
-(defn- git-revisions [git-path]
+(defn- git-revisions
+  "Get commit SHAs from a repository at `git-path`."
+  [git-path]
   (->> (shell/sh "git" "-C" git-path "rev-list" "--pretty=oneline" "--reverse" "master")
        :out
        str/split-lines
        (pmap #(subs % 0 40)))) ; get the SHA
 
-(defn- sha->pi-email [git-path sha]
+(defn- sha->pi-email
+  "Get the public-inbox email in `sha` at `git-path`."
+  [git-path sha]
   (:out (shell/sh "git" "-C" git-path "show" (str sha ":m"))))
 
 (defn- ->stream [s]
@@ -32,7 +38,10 @@
 (defn- topmost-path [path]
   (last (str/split path #"/")))
 
-(defn- lkml-paths [top-path]
+(defn- lkml-paths
+  "Return a vector of LKML list tuples, in the format [list-name path].
+  Expects `top-path` to be the root of the grokmirror directory."
+  [top-path]
   (let [paths (transient [])]
     (doseq [list-path (.listFiles (io/file top-path))]
       (let [list-name (-> list-path .getAbsolutePath topmost-path)]
@@ -42,26 +51,44 @@
               (conj! paths [list-name (.getAbsolutePath sublist-path)]))))))
     (persistent! paths)))
 
-(defn- parse-emails [[list-name git-path]]
+(defn- parse-emails
+  "Return publix-inbox emails in map format suitable for `email->query`.
+  Expects its argument to be a tuple from `lkml-paths`."
+  [[list-name git-path]]
   (->> git-path
        git-revisions
        (pmap (comp #(assoc % :list list-name)
                    parse-email
                    (partial sha->pi-email git-path)))))
 
-(defn- email->query [email]
+(defn- email->query
+  "Build a next.jdbc-compatible insertion query from `email`."
+  [email]
   {:author  (-> email :from first :name)
    :address (-> email :from first :address)
    :date    (-> email :date-sent)
    :subject (-> email :subject)
    :body    (-> email :body :body)})
 
-;; DATABASE QUERY
+(defn ready-emails
+  "Ready emails for insertion into `db`.
+  Excepts `list` to be the name `lkml-paths`-name of the desired list."
+  [list]
+  (->> (lkml-paths "/Users/lla/Projects/github/lkml/")
+       (filter (fn [[list-name _]]
+                 (= list-name list)))
+       (pmap (comp (partial pmap email->query)
+                   parse-emails))))
 
-(def ^:private db {:dbtype "sqlite" :dbname "resources/db/lkml-fts"})
-(def ^:private ds (jdbc/get-datasource db))
 
-(defn- emails-by-key [key]
+;;;; DATABASE QUERY
+
+(defonce ^:private db {:dbtype "sqlite" :dbname "resources/db/lkml-fts"})
+(defonce ^:private ds (jdbc/get-datasource db))
+
+(defn- emails-by-key
+  "Factory function for column/key query."
+  [key]
   (fn [s limit offset]
     (jdbc/execute! ds [(format "SELECT rowid, * FROM email
                                 WHERE %s MATCH '%s'
@@ -73,7 +100,9 @@
 (def emails-by-subject (emails-by-key "subject"))
 (def emails-by-body    (emails-by-key "body"))
 
-(defn- count-emails-by-key [key]
+(defn- count-emails-by-key
+  "Factory function for column/key count."
+  [key]
   (fn [s]
     (if s
       (let [q (format "SELECT count(*) FROM email WHERE %s MATCH '%s'" key s)]
@@ -84,21 +113,11 @@
 (def count-emails-by-body    (count-emails-by-key "body"))
 
 (comment 
-  (count-emails-by-subject "open")
+  ;; table "schema"
+  (jdbc/execute! ds ["CREATE VIRTUAL TABLE email USING fts5(author, address, date, subject, body)"])
 
-  (def emails ;; [0 1 2]
-    (->> (lkml-paths "/Users/lla/Projects/github/lkml/")
-         (filter (fn [[list _]] (= list "lkml")))
-         (sort)
-         (drop 3)
-         (take 1)
-         (pmap (comp (partial pmap email->query)
-                     parse-emails))))
-
-  (doseq [list emails]
+  ;; insert the readied emails into the database
+  (doseq [list (ready-emails "$LIST$")]
     (doseq [query list]
       (sql/insert! ds :email query)))
-
-  (sql/query ds ["SELECT author FROM email WHERE rowid = 10000"])
-  ;; (jdbc/execute! ds ["CREATE VIRTUAL TABLE email USING fts5(author, address, date, subject, body)"])
   )

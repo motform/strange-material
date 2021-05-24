@@ -1,4 +1,5 @@
 (ns org.motform.strange-materials.aai.server.open-ai
+  "Wrapper around the OpenAI API beta. Bring your own API key!"
   (:require [org.httpkit.client :as client]
             [clojure.data.json  :as json]
             [clojure.set        :as set]
@@ -47,9 +48,4 @@
 (defn response-text [response]
   (-> response :body parse-json :open-ai/choices first :open-ai/text))
 
-(comment 
-  (def c
-    (completion :davinci-instruct-beta
-                {:prompt     "Write a request to buy steel from a company that otherwise sells corn."
-                 :max_tokens 200}))
-  )
+

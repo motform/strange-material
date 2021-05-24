@@ -1,9 +1,8 @@
 (ns org.motform.strange-materials.lkml.core
+  "cljfx setup and interface entry point."
   (:require [cljfx.api          :as fx]
             [clojure.core.cache :as cache]
             [org.motform.strange-materials.lkml.ui :as ui]))
-
-;; TODO move all this to ui namespace
 
 (def *state
   (atom
@@ -36,18 +35,9 @@
   (fx/mount-renderer *state renderer))
 
 (comment
+
   (-main)
-  
   (renderer)
-  (swap! org.motform.strange-materials.lkml.core/*state identity) ; touch state
-
-  (require 'clojure.string)
-
-  (->> (-> @*state :cljfx.context/m :repl/responses)
-       (map :val)
-       reverse
-       (clojure.string/join "\n"))
-
-  (-> @*state :cljfx.context/m :linux/responses keys)
+  (swap! org.motform.strange-materials.lkml.core/*state identity) ; touch state to refresh UI
 
   )

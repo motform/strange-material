@@ -1,4 +1,5 @@
 (ns org.motform.strange-materials.lkml.ui
+  "UI views, event and subs, using re-frame like cljfx."
   (:require [cljfx.api          :as fx]      
             [cljfx.css          :as css]
             [clojure.string     :as str]     
@@ -15,6 +16,8 @@
   (println event))
 
 ;;; COMMAND LINE
+
+(defonce ssh-address "vagrant@lkml")
 
 (defn parse-strace [strace]
   (->> strace
@@ -38,7 +41,7 @@
   (fx/sub-val context :linux/responses))
 
 (defn ssh-effect [{:keys [command]} dispatch!]
-  (let [{:keys [out err]} (shell/sh "ssh" "vagrant@lkml" "strace" command)]
+  (let [{:keys [out err]} (shell/sh "ssh" ssh-address "strace" command)]
     (dispatch! {:event/type ::ssh-response
                 :response   #:command{:output out
                                       :name   command
@@ -123,18 +126,18 @@
                     :children     (for [subsection (partition-all 10 system-calls)]
                                     {:fx/type  :v-box
                                      :style-class "sidebar-list-sublist"
-                                     :min-width 100
-                                     :children (for [{:strace/keys [name] :as system-call} subsection]
-                                                 {:fx/type     system-call-item
-                                                  :system-call system-call
-                                                  :selected?   (= name selected-system-call)})})}]}))
+                                     :min-width   100
+                                     :children    (for [{:strace/keys [name] :as system-call} subsection]
+                                                    {:fx/type     system-call-item
+                                                     :system-call system-call
+                                                     :selected?   (= name selected-system-call)})})}]}))
 
 (defn std-out-item [{:keys [line]}]
   {:fx/type     :h-box
    :style-class "std-out-item"
-   :children [{:fx/type     :label
-               :style-class "std-out-item-text"
-               :text        line}]})
+   :children    [{:fx/type     :label
+                  :style-class "std-out-item-text"
+                  :text        line}]})
 
 (defn std-out-view [{:fx/keys [context]}]
   (let [{:command/keys [output]} (fx/sub-ctx context linux-response)]
