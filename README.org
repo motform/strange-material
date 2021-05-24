@@ -1,1 +1,15 @@
-so strange, but appealing
+Strange materials are a set of interfaces accompanying my interaction design master thesis /Computation as Strange Material: Excursions into Critical Accidents./
+
+For context, please refer to the thesis document (link TBA). This README covers the some technical gotchas in running/reproducing the interfaces. Feel free to raise an issue if you run into any problems.
+
+* Linux Kernel Mailing List
+To run the interface, use the alias ~$ clj -X:lkml~.
+
+** Database
+The Linux kernel mailing list (LKML) interface uses [[https://www.sqlite.org/fts5.html][sqlite FTS5]] to search through the LKML archive. I do not distribute a db artifact, so you need to download and set it up on your own. [[https://people.kernel.org/monsieuricon/subscribing-to-lore-lists-with-grokmirror][Konstantin Ryabitsev has a good guide on how to mirror the LKML using gorkmirror]]. Once you have the archive, you can use the helper functions in ~org.motform.strange-materials.lkml.db~ to configure the database.
+
+** Linux virtual machine
+The interface communicates to a Linux virtual machine via ssh, the address of which is set using the ~ssh-address~ in ~org.motform.strange-materials.lkml.ui~. Change ~ssh-effect~ if you want to talk to get stack-traces by some other mean.
+
+* Artificial Artificial Intelligence
+The Artificial Artificial Intelligence (AAI) interface uses web sockets to communicate between clients, which means you have to make sure everything connects to the correct address. The server accepts a ~--port~ flag the interface, i.e. ~$ clj -X:aai-server --port 8888~, while the client prompts the user for port and address on launch. The latter is launched with  ~$ clj -X:aai-client~.
