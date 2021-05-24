@@ -1,5 +1,5 @@
 (ns org.motform.strange-materials.aai.server.ui
-  "UI views, event and subs, using re-frame like cljfx."
+  "UI views, event and subs, using re-frame-like cljfx."
   (:require [cljfx.api :as fx]      
             [cljfx.css :as css]
             [clojure.core.cache :as cache]
@@ -87,7 +87,6 @@
                                         :messages []})}))
 
 (defmethod event-handler ::send-smart-replies [{:keys [fx/context client/id smart-reply/drafts]}]
-  (def s [id drafts])
   (let [channel (get-in (fx/sub-ctx context sub-clients) [id :client/channel])]
     {:server/send-smart-replies {:smart-replies drafts
                                  :channel       channel}
