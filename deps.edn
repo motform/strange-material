@@ -3,7 +3,7 @@
  :deps    {org.clojure/clojure                             {:mvn/version "1.11.0-alpha1"}
            cljfx/cljfx                                     {:mvn/version "1.7.13"}
            cljfx/css                                       {:mvn/version "1.1.0"}
-           stylefruits/gniazdo               {:mvn/version "1.2.0"}
+           stylefruits/gniazdo                             {:mvn/version "1.2.0"}
            org.clojure/core.cache                          {:mvn/version "1.0.207"}}
 
  :aliases {:aai-client
