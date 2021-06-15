@@ -53,12 +53,11 @@
                                           :body body})
     (dispatch! {:event/type ::update-name-input :fx/event ""})))
 
-(defn ws-connect-effect []
-  (fn [{:keys [port host]} dispatch!]
-    (dispatch! {:event/type ::connect-socket
-                :port       port
-                :host       host
-                :dispatch!  dispatch!})))
+(defn ws-connect-effect [{:keys [port host]} dispatch!]
+  (dispatch! {:event/type ::connect-socket
+              :port       port
+              :host       host
+              :dispatch!  dispatch!}))
 
 ;;;; EVENTS
 
